@@ -931,4 +931,16 @@
     <string name="color_picker_grid">Grid</string>
     <!-- Accessibility label for the voice-search mic button in the search bar -->
     <string name="voice_search">Voice search</string>
+    <!-- Settings toggle that enables the experimental option to navigate along imported tracks. -->
+    <string name="enable_track_following">Enable track following (experimental)</string>
+    <!-- Description of the experimental track-following setting. -->
+    <string name="enable_track_following_summary">Offer track following when navigating from an imported track.</string>
+    <!-- Action that builds a navigable route along an imported track, towards the end of the track. -->
+    <string name="follow_track">Follow track to end</string>
+    <!-- Action that builds a navigable route along an imported track, towards the start of the track. -->
+    <string name="follow_track_reverse">Follow track to start</string>
+    <!-- Action that builds a navigable route along an imported track, stopping at the point the user tapped on it. -->
+    <string name="follow_track_to_here">Follow track to this point</string>
+    <!-- Error shown when an imported track cannot be prepared for navigation. -->
+    <string name="track_follow_unavailable">This track cannot be followed from your current position.</string>
 </resources>

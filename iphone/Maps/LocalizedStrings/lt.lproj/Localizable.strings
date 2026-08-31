@@ -1189,3 +1189,21 @@
 
 /* Toast message shown when track colors are changed in category settings */
 "toast_tracks_color_changed" = "Trasų spalva pakeista";
+
+/* Settings toggle that enables the experimental option to navigate along imported tracks. */
+"enable_track_following" = "Enable track following (experimental)";
+
+/* Description of the experimental track-following setting. */
+"enable_track_following_summary" = "Offer track following when navigating from an imported track.";
+
+/* Action that builds a navigable route along an imported track, towards the end of the track. */
+"follow_track" = "Follow track to end";
+
+/* Action that builds a navigable route along an imported track, towards the start of the track. */
+"follow_track_reverse" = "Follow track to start";
+
+/* Action that builds a navigable route along an imported track, stopping at the point the user tapped on it. */
+"follow_track_to_here" = "Follow track to this point";
+
+/* Error shown when an imported track cannot be prepared for navigation. */
+"track_follow_unavailable" = "This track cannot be followed from your current position.";
