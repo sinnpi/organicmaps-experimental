@@ -111,6 +111,7 @@ extension NavigationDashboard {
         }
         viewModel.routePoints = RoutePoints(points: points)
         viewModel.routerType = routerType
+        viewModel.transportOptions = MWMRouter.isTrackFollowMode() ? [.pedestrian, .bicycle] : MWMRouterType.allCases
         viewModel.canSaveRouteAsTrack = canSaveRouteAsTrack
         if !isSearchOpened, viewModel.presentationStep == .hidden {
           let step = viewModel.latestVisiblePresentationStep.forNavigationState(viewModel.dashboardState)

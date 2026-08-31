@@ -25,6 +25,7 @@ enum RootSettings: String, Hashable {
   case logging
   case perspectiveView
   case autoZoom
+  case trackFollow
   case voiceInstructions
   case routingOptions
   case searchHistory
@@ -70,6 +71,7 @@ extension RootSettings {
     case .logging: return L("enable_logging")
     case .perspectiveView: return L("pref_map_3d_title")
     case .autoZoom: return L("pref_map_auto_zoom")
+    case .trackFollow: return L("enable_track_following")
     case .voiceInstructions: return L("pref_tts_enable_title")
     case .routingOptions: return L("driving_options_title")
     case .searchHistory: return L("search_history_title")
@@ -99,6 +101,7 @@ extension RootSettings {
          .logging,
          .perspectiveView,
          .autoZoom,
+         .trackFollow,
          .searchHistory:
       return nil
     }
@@ -185,6 +188,7 @@ struct RootSettingsState {
   let iCloudSynchronizationState: SynchronizationManagerState?
   let map3DEnabled: Bool
   let autoZoomEnabled: Bool
+  let trackFollowEnabled: Bool
   let ttsEnabled: Bool
   let fileLoggingEnabled: Bool
   let logFileSize: UInt64

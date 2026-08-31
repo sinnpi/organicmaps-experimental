@@ -205,6 +205,16 @@ NSString * const kUDDidShowICloudSynchronizationEnablingAlert = @"kUDDidShowIClo
   f.SaveAutoZoom(enabled);
 }
 
++ (BOOL)trackFollowEnabled
+{
+  return settings::IsEnabled(settings::kTrackFollowEnabled);
+}
+
++ (void)setTrackFollowEnabled:(BOOL)enabled
+{
+  settings::Set(settings::kTrackFollowEnabled, static_cast<bool>(enabled));
+}
+
 + (BOOL)searchHistoryEnabled
 {
   bool enabled = true;

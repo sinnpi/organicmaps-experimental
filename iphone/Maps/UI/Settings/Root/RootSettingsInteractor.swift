@@ -130,6 +130,7 @@ final class RootSettingsInteractor {
                       iCloudSynchronizationState: iCloudSynchronizationState,
                       map3DEnabled: settings.perspectiveViewEnabled(),
                       autoZoomEnabled: settings.autoZoomEnabled(),
+                      trackFollowEnabled: settings.trackFollowEnabled(),
                       ttsEnabled: MWMTextToSpeech.isTTSEnabled(),
                       fileLoggingEnabled: settings.isFileLoggingEnabled(),
                       logFileSize: settings.logFileSize(),
@@ -162,6 +163,8 @@ final class RootSettingsInteractor {
       settings.setPerspectiveViewEnabled(enabled)
     case .autoZoom:
       settings.setAutoZoomEnabled(enabled)
+    case .trackFollow:
+      settings.setTrackFollowEnabled(enabled)
     case .searchHistory:
       settings.setSearchHistoryEnabled(enabled)
       if !enabled {

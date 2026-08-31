@@ -22,6 +22,9 @@ using namespace storage;
 
 @property(nonatomic) storage::NodeStatus currentDownloaderStatus;
 
+/// Shared tail of the followTrack entry points: builds the prepared route and dismisses the UI.
+- (BOOL)buildPreparedTrackRoute:(RoutingManager::PrepareTrackFollowResult)result;
+
 @end
 
 @implementation MWMPlacePageManager
@@ -61,6 +64,37 @@ using namespace storage;
   [MWMRouter buildToPoint:point bestRouter:YES];
   [self.searchManager close];
   [self closePlacePage];
+}
+
+- (BOOL)followTrack:(PlacePageData *)data reverse:(BOOL)reverse
+{
+  if (data.objectType != PlacePageObjectTypeTrack || data.trackData == nil)
+    return NO;
+
+  auto const direction = reverse ? track_following::Direction::Reverse : track_following::Direction::Forward;
+  auto const result = GetFramework().GetRoutingManager().PrepareTrackFollow(data.trackData.trackId, direction);
+  return [self buildPreparedTrackRoute:result];
+}
+
+- (BOOL)followTrackToSelectedPoint:(PlacePageData *)data
+{
+  if (data.objectType != PlacePageObjectTypeTrack || data.trackData == nil)
+    return NO;
+
+  auto const result = GetFramework().GetRoutingManager().PrepareTrackFollowToSelectedPoint(data.trackData.trackId);
+  return [self buildPreparedTrackRoute:result];
+}
+
+- (BOOL)buildPreparedTrackRoute:(RoutingManager::PrepareTrackFollowResult)result
+{
+  if (result != RoutingManager::PrepareTrackFollowResult::Success)
+    return NO;
+
+  [[MWMMapViewControlsManager manager] onRouteRebuild];
+  GetFramework().GetRoutingManager().BuildRoute();
+  [self.searchManager close];
+  [self closePlacePage];
+  return YES;
 }
 
 - (void)routeAddStop:(PlacePageData *)data

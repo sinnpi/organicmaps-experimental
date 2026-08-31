@@ -55,6 +55,9 @@ NS_SWIFT_NAME(Settings)
 + (BOOL)autoZoomEnabled;
 + (void)setAutoZoomEnabled:(BOOL)enabled;
 
++ (BOOL)trackFollowEnabled;
++ (void)setTrackFollowEnabled:(BOOL)enabled;
+
 + (BOOL)searchHistoryEnabled;
 + (void)setSearchHistoryEnabled:(BOOL)enabled;
 

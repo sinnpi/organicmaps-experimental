@@ -44,6 +44,11 @@
 + (void)book:(PlacePageData *)data;
 + (void)routeFrom:(PlacePageData *)data;
 + (void)routeTo:(PlacePageData *)data;
+/// @param reverse follow the track towards its start instead of its end, for when the user is
+///                heading to the other end of it.
++ (BOOL)followTrack:(PlacePageData *)data reverse:(BOOL)reverse;
+/// Follows the track only as far as the point the user selected on it, rather than to either end.
++ (BOOL)followTrackToSelectedPoint:(PlacePageData *)data;
 + (void)routeAddStop:(PlacePageData *)data;
 + (void)routeRemoveStop:(PlacePageData *)data;
 + (void)avoidDirty;

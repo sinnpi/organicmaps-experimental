@@ -50,6 +50,8 @@
 - (void)book:(PlacePageData *)data;
 - (void)routeFrom:(PlacePageData *)data;
 - (void)routeTo:(PlacePageData *)data;
+- (BOOL)followTrack:(PlacePageData *)data reverse:(BOOL)reverse;
+- (BOOL)followTrackToSelectedPoint:(PlacePageData *)data;
 - (void)routeAddStop:(PlacePageData *)data;
 - (void)routeRemoveStop:(PlacePageData *)data;
 - (void)avoidDirty;
@@ -234,6 +236,16 @@
 + (void)routeTo:(PlacePageData *)data
 {
   [[MWMMapViewControlsManager manager].placePageManager routeTo:data];
+}
+
++ (BOOL)followTrack:(PlacePageData *)data reverse:(BOOL)reverse
+{
+  return [[MWMMapViewControlsManager manager].placePageManager followTrack:data reverse:reverse];
+}
+
++ (BOOL)followTrackToSelectedPoint:(PlacePageData *)data
+{
+  return [[MWMMapViewControlsManager manager].placePageManager followTrackToSelectedPoint:data];
 }
 
 + (void)routeAddStop:(PlacePageData *)data

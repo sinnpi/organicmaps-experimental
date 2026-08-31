@@ -135,6 +135,10 @@ using namespace routing;
 {
   return GetFramework().GetRoutingManager().IsRouteFinished();
 }
++ (BOOL)isTrackFollowMode
+{
+  return GetFramework().GetRoutingManager().IsTrackFollowMode();
+}
 + (BOOL)isRouteRebuildingOnly
 {
   return GetFramework().GetRoutingManager().IsRouteRebuildingOnly();
@@ -230,6 +234,10 @@ using namespace routing;
   if (type == self.type)
     return;
 
+  auto const & routingManager = GetFramework().GetRoutingManager();
+  if (routingManager.IsTrackFollowMode() && type != MWMRouterTypePedestrian && type != MWMRouterTypeBicycle)
+    return;
+
   [self doStop:NO];
   GetFramework().GetRoutingManager().SetRouter(coreRouterType(type));
 }
@@ -319,6 +327,9 @@ using namespace routing;
 
 + (void)swapStartAndFinish
 {
+  if ([self isTrackFollowMode])
+    return;
+
   auto const points = GetFramework().GetRoutingManager().GetRoutePoints();
   CHECK(!points.empty(), ("Should never be empty"));
   auto & rm = GetFramework().GetRoutingManager();

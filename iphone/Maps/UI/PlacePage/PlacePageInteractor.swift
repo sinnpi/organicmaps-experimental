@@ -268,7 +268,14 @@ extension PlacePageInteractor: ActionBarViewControllerDelegate {
     case .routeRemoveStop:
       MWMPlacePageManagerHelper.routeRemoveStop(placePageData)
     case .routeTo:
-      MWMPlacePageManagerHelper.route(to: placePageData)
+      // isTrackFollowMode: a track-follow plan is not a multi-point route being composed, so picking
+      // another track replaces the followed one rather than appending a destination to it.
+      let canStartNewRoute = !MWMRouter.isRoutingActive() || MWMRouter.isOnRoute() || MWMRouter.isRouteFinished() || MWMRouter.isTrackFollowMode()
+      if canStartNewRoute, Settings.trackFollowEnabled(), placePageData.objectType == .track {
+        showTrackNavigationMenu()
+      } else {
+        MWMPlacePageManagerHelper.route(to: placePageData)
+      }
     case .avoidToll:
       MWMPlacePageManagerHelper.avoidToll()
     case .avoidDirty:
@@ -297,6 +304,36 @@ extension PlacePageInteractor: ActionBarViewControllerDelegate {
     @unknown default:
       fatalError()
     }
+  }
+
+  private func showTrackNavigationMenu() {
+    let alert = UIAlertController(title: placePageData.previewData.title,
+                                  message: nil,
+                                  preferredStyle: .actionSheet)
+    alert.addAction(UIAlertAction(title: L("p2p_to_here"), style: .default) { [weak self] _ in
+      guard let self else { return }
+      MWMPlacePageManagerHelper.route(to: self.placePageData)
+    })
+    alert.addAction(UIAlertAction(title: L("follow_track_to_here"), style: .default) { [weak self] _ in
+      guard let self else { return }
+      if !MWMPlacePageManagerHelper.followTrackToSelectedPoint(self.placePageData) {
+        self.presenter?.showToast(L("track_follow_unavailable"))
+      }
+    })
+    alert.addAction(UIAlertAction(title: L("follow_track"), style: .default) { [weak self] _ in
+      guard let self else { return }
+      if !MWMPlacePageManagerHelper.followTrack(self.placePageData, reverse: false) {
+        self.presenter?.showToast(L("track_follow_unavailable"))
+      }
+    })
+    alert.addAction(UIAlertAction(title: L("follow_track_reverse"), style: .default) { [weak self] _ in
+      guard let self else { return }
+      if !MWMPlacePageManagerHelper.followTrack(self.placePageData, reverse: true) {
+        self.presenter?.showToast(L("track_follow_unavailable"))
+      }
+    })
+    alert.addAction(UIAlertAction(title: L("cancel"), style: .cancel))
+    presenter?.showAlert(alert)
   }
 
   private func startMapDownloading() {

@@ -15,6 +15,7 @@ NS_ASSUME_NONNULL_BEGIN
 + (BOOL)isRoutingActive;
 + (BOOL)isRouteBuilt;
 + (BOOL)isRouteFinished;
++ (BOOL)isTrackFollowMode;
 + (BOOL)isRouteRebuildingOnly;
 + (BOOL)isOnRoute;
 
