@@ -2,6 +2,7 @@
 
 #include <climits>
 #include <cstdint>
+#include <ctime>
 #include <string>
 #include <unordered_map>
 #include <vector>
