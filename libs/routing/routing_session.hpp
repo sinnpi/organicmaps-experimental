@@ -50,6 +50,14 @@ public:
   /// @param[in] checkpoints in mercator
   /// @param[in] timeoutSec timeout in seconds, if zero then there is no timeout
   void BuildRoute(Checkpoints const & checkpoints, uint32_t timeoutSec);
+
+  /// See IRouter::SetTrackCorridor. Stays in effect across rebuilds until cleared with an empty vector.
+  void SetTrackCorridor(std::vector<m2::PointD> centerline)
+  {
+    CHECK(m_router, ());
+    m_router->SetTrackCorridor(std::move(centerline));
+  }
+
   void RebuildRoute(m2::PointD const & startPoint, ReadyCallback const & readyCallback,
                     NeedMoreMapsCallback const & needMoreMapsCallback, RemoveRouteCallback const & removeRouteCallback,
                     uint32_t timeoutSec, SessionState routeRebuildingState, bool adjustToPrevRoute);

@@ -48,6 +48,8 @@ public:
                       uint32_t timeoutSec = RouterDelegate::kNoTimeout);
 
   void SetGuidesTracks(GuidesTracks && guides);
+  /// Forward to the underlying IRouter. See IRouter::SetTrackCorridor.
+  void SetTrackCorridor(std::vector<m2::PointD> && centerline);
   /// Interrupt routing and clear buffers
   void ClearState();
   /// Forward to the underlying IRouter. See IRouter::SwapAltRouteToActive.
@@ -109,6 +111,8 @@ private:
   bool m_clearState = false;
   Checkpoints m_checkpoints;
   GuidesTracks m_guides;
+  // Unlike |m_guides| this outlives a single request -- see IRouter::SetTrackCorridor.
+  std::vector<m2::PointD> m_trackCorridor;
 
   m2::PointD m_startDirection = m2::PointD::Zero();
   bool m_adjustToPrevRoute = false;

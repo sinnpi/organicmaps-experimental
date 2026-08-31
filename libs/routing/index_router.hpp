@@ -80,9 +80,19 @@ public:
   void ClearState() override;
 
   void SetGuides(GuidesTracks && guides) override;
+  void SetTrackCorridor(std::vector<m2::PointD> && centerline) override { m_trackCorridor = std::move(centerline); }
   RouterResultCode CalculateRoute(Checkpoints const & checkpoints, m2::PointD const & startDirection,
                                   bool adjustToPrevRoute, RouterDelegate const & delegate,
                                   RoutesResult & result) override;
+
+  // Builds a single, continuous route from |start| to |finish| biased toward staying close to
+  // |centerline| (e.g. an imported GPX/KML track), instead of purely minimizing time/distance. Used by
+  // track-following navigation. Unlike CalculateRoute, this never introduces via-points: the bias is
+  // applied to the search graph itself (see TrackCorridorWorldGraph), so the result is exactly as if a
+  // normal two-point route had been requested on a corridor-shaped road network.
+  RouterResultCode CalculateTrackFollowingRoute(std::vector<m2::PointD> const & centerline, m2::PointD const & start,
+                                                m2::PointD const & finish, RouterDelegate const & delegate,
+                                                Route & route);
 
   bool FindClosestProjectionToRoad(m2::PointD const & point, m2::PointD const & direction, double radius,
                                    EdgeProj & proj) override;
@@ -309,6 +319,8 @@ private:
 
   // If a ckeckpoint is near to the guide track we need to build route through this track.
   GuidesConnections m_guides;
+  // Non-empty only in track-following navigation; see SetTrackCorridor and CalculateTrackFollowingRoute.
+  std::vector<m2::PointD> m_trackCorridor;
 
   CountryParentNameGetterFn m_countryParentNameGetterFn;
 

@@ -183,6 +183,12 @@ void AsyncRouter::SetGuidesTracks(GuidesTracks && guides)
   m_guides = std::move(guides);
 }
 
+void AsyncRouter::SetTrackCorridor(std::vector<m2::PointD> && centerline)
+{
+  lock_guard ul(m_guard);
+  m_trackCorridor = std::move(centerline);
+}
+
 void AsyncRouter::ClearState()
 {
   lock_guard ul(m_guard);
@@ -299,6 +305,8 @@ void AsyncRouter::CalculateRoute()
     routerName = router->GetName();
     router->SetGuides(std::move(m_guides));
     m_guides.clear();
+    // Copied, not moved: the corridor stays in effect for later rebuilds after a deviation.
+    router->SetTrackCorridor(std::vector<m2::PointD>(m_trackCorridor));
   }
 
   auto result = std::make_shared<RoutesResult>(router->GetName(), routeId);

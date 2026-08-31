@@ -57,6 +57,12 @@ public:
 
   virtual void SetGuides(GuidesTracks && guides) = 0;
 
+  /// Sets the centerline of an imported track the route should stay close to (track-following
+  /// navigation). Unlike guides this is not consumed by a single request: it stays in effect until
+  /// cleared with an empty vector, so rebuilds after a deviation keep following the same track.
+  /// Routers with no notion of a track corridor ignore it.
+  virtual void SetTrackCorridor(std::vector<m2::PointD> && /* centerline */) {}
+
   /// Override this function with routing implementation.
   /// It will be called in separate thread and only one function will processed in same time.
   /// @warning please support Cancellable interface calls. You must stop processing when it is true.

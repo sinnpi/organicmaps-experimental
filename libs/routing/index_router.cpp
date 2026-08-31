@@ -19,6 +19,7 @@
 #include "routing/routing_options.hpp"
 #include "routing/single_vehicle_world_graph.hpp"
 #include "routing/speed_camera_prohibition.hpp"
+#include "routing/track_corridor_world_graph.hpp"
 #include "routing/traffic_stash.hpp"
 #include "routing/transit_world_graph.hpp"
 #include "routing/vehicle_mask.hpp"
@@ -427,7 +428,15 @@ RouterResultCode IndexRouter::CalculateRoute(Checkpoints const & checkpoints, m2
     SCOPE_GUARD(featureRoadGraphClear, [this] { ClearRouteCalculationState(); });
 
     bool doCalculate = true;
-    if (adjustToPrevRoute && m_lastRoute && m_lastFakeEdges && finalPoint == m_lastRoute->GetFinish())
+    if (!m_trackCorridor.empty())
+    {
+      // Track following. Neither adjust-to-previous nor the alternative route applies here: the first
+      // works off the unbiased graph and would drift off the track, and there is only one sensible way
+      // to follow a given track, so a second "alternative" would just be a worse match for it.
+      code = CalculateTrackFollowingRoute(m_trackCorridor, startPoint, finalPoint, delegate, route);
+      doCalculate = false;
+    }
+    else if (adjustToPrevRoute && m_lastRoute && m_lastFakeEdges && finalPoint == m_lastRoute->GetFinish())
     {
       double const distanceToRoute = m_lastRoute->CalcDistance(startPoint);
       double const distanceToFinish = mercator::DistanceOnEarth(startPoint, finalPoint);
@@ -1246,6 +1255,92 @@ RouterResultCode IndexRouter::AdjustRoute(Checkpoints const & checkpoints, m2::P
               ", prev route:", steps.size(), ", new route:", result.m_path.size()));
 
   return RouterResultCode::NoError;
+}
+
+RouterResultCode IndexRouter::CalculateTrackFollowingRoute(std::vector<m2::PointD> const & centerline,
+                                                           m2::PointD const & start, m2::PointD const & finish,
+                                                           RouterDelegate const & delegate, Route & route)
+{
+  CHECK_GREATER_OR_EQUAL(centerline.size(), 2, ());
+
+  // Track routes are never adjusted, and must not leave a cache behind that a later normal route
+  // could adjust from -- same reason DoCalculateRoute drops it up front.
+  m_lastRoute.reset();
+
+  // Price every road by distance instead of by the profile's road-class preference. That preference
+  // is what the corridor is up against, and it is measured in the same units the corridor's penalty
+  // scales: the pedestrian model rates a footway above the residential street beside it, so a
+  // footpath cutting a corner the track goes round wins on weight even after being charged for the
+  // track it skips -- the shallower the corner, the less it skips and the cheaper that charge. The
+  // user already chose the roads by handing us the track, so the preference is exactly the input we
+  // do not want here. With every road at the same price per metre, a shortcut pays for the stretch
+  // of track it replaces plus the distance it saves, and can no longer win. The route's times are
+  // unaffected: RedressRoute measures them with Purpose::ETA, which this leaves alone.
+  m_estimator->SetStrategy(EdgeEstimator::Strategy::Shortest);
+  SCOPE_GUARD(restoreStrategy, [this] { m_estimator->SetStrategy(EdgeEstimator::Strategy::Normal); });
+
+  TrafficStash::Guard guard(m_trafficStash);
+  std::unique_ptr<WorldGraph> baseGraph = MakeWorldGraph();
+
+  // Snap on the unbiased graph on purpose: PointsOnEdgesSnapping rejects candidates whose local
+  // neighbourhood looks like a dead end, and it discovers that by walking GetEdgeList. Run through
+  // the corridor graph, edges dropped by the hard bound would masquerade as dead ends and the best
+  // start/finish edges would be discarded before the search even begins.
+  FakeEnding startEnding;
+  FakeEnding finishEnding;
+  bool startIsCodirectional = false;
+  PointsOnEdgesSnapping snapping(*this, *baseGraph);
+  switch (
+      snapping.Snap(start, finish, m2::PointD::Zero() /* direction */, startEnding, finishEnding, startIsCodirectional))
+  {
+  case 1: return RouterResultCode::StartPointNotFound;
+  case 2: return RouterResultCode::EndPointNotFound;
+  }
+
+  TrackCorridorWorldGraph corridorGraph(*baseGraph, centerline);
+
+  // NoLeaps, rather than the Joints mode pedestrians and bicycles normally get. Joints mode compresses
+  // chains of segments into single edges and reshuffles their weights through IndexGraphStarterJoints'
+  // m_savedWeight/parentWeights bookkeeping, which -- as the cross-MWM penalty there already documents
+  // -- cannot carry a penalty symmetrically across both waves of the bidirectional search. On plain
+  // segments the corridor penalty lands exactly on the edge it was computed for. Guides take the same
+  // way out for the same reason (see SetupAlgorithmMode), and the corridor's hard bound keeps the
+  // uncompressed search space small.
+  corridorGraph.SetMode(WorldGraphMode::NoLeaps);
+
+  // The corridor's hard bound is widened and the search retried if it was too tight to find any
+  // path at all -- a single noisy/offset track point should not make the whole track unroutable.
+  RouterResultCode result = RouterResultCode::RouteNotFound;
+  for (double const radiusM : {500.0, 1500.0, 5000.0})
+  {
+    corridorGraph.SetMaxCorridorRadiusM(radiusM);
+
+    IndexGraphStarter starter(startEnding, finishEnding, 0 /* fakeNumerationStart */,
+                              false /* isStartSegmentStrictForward */, corridorGraph);
+
+    std::vector<Segment> segments;
+    auto progress = std::make_shared<AStarProgress>();
+    result = CalculateSubrouteNoLeapsMode(starter, delegate, progress, segments);
+    if (result == RouterResultCode::Cancelled || result == RouterResultCode::NoCurrentPosition)
+      return result;
+    if (result != RouterResultCode::NoError)
+    {
+      // A failed attempt costs a full exhaustive search of the corridor, so widening is not free.
+      LOG(LWARNING, ("No track-following route within", radiusM, "m of the track, widening the corridor"));
+      continue;
+    }
+
+    IndexGraphStarter::CheckValidRoute(segments);
+
+    std::vector<Route::SubrouteAttrs> subroutes;
+    subroutes.emplace_back(starter.GetStartJunction().ToPointWithAltitude(),
+                           starter.GetFinishJunction().ToPointWithAltitude(), 0 /* beginSegmentIdx */, segments.size());
+    route.SetSubroutes(std::move(subroutes), 0 /* passedIdx */);
+
+    return RedressRoute(segments, delegate.GetCancellable(), starter, route);
+  }
+
+  return result;
 }
 
 std::unique_ptr<WorldGraph> IndexRouter::MakeWorldGraph()
