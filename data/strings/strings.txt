@@ -45131,3 +45131,33 @@ uk = Голосовий пошук
 vi = Tìm kiếm bằng giọng nói
 zh-Hans = 语音搜索
 zh-Hant = 語音搜尋
+
+[enable_track_following]
+comment = Settings toggle that enables the experimental option to navigate along imported tracks.
+tags = android-app,apple-maps
+en = Enable track following (experimental)
+
+[enable_track_following_summary]
+comment = Description of the experimental track-following setting.
+tags = android-app,apple-maps
+en = Offer track following when navigating from an imported track.
+
+[follow_track]
+comment = Action that builds a navigable route along an imported track, towards the end of the track.
+tags = android-app,apple-maps
+en = Follow track to end
+
+[follow_track_reverse]
+comment = Action that builds a navigable route along an imported track, towards the start of the track.
+tags = android-app,apple-maps
+en = Follow track to start
+
+[follow_track_to_here]
+comment = Action that builds a navigable route along an imported track, stopping at the point the user tapped on it.
+tags = android-app,apple-maps
+en = Follow track to this point
+
+[track_follow_unavailable]
+comment = Error shown when an imported track cannot be prepared for navigation.
+tags = android-app,apple-maps
+en = This track cannot be followed from your current position.
