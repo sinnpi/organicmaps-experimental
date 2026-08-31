@@ -3,6 +3,7 @@
 #include "map/bookmark_manager.hpp"
 #include "map/extrapolation/extrapolator.hpp"
 #include "map/routing_mark.hpp"
+#include "map/track_following.hpp"
 #include "map/transit/transit_display.hpp"
 #include "map/transit/transit_reader.hpp"
 
@@ -128,6 +129,25 @@ public:
   bool IsOnRoute() const { return m_routingSession.IsOnRoute(); }
   bool IsRoutingFollowing() const { return m_routingSession.IsFollowing(); }
   bool IsRouteValid() const { return m_routingSession.IsRouteValid(); }
+
+  enum class PrepareTrackFollowResult
+  {
+    Success,
+    TrackNotFound,
+    NoCurrentPosition,
+    InvalidGeometry
+  };
+
+  // Prepares invisible shaping points which make the normal router follow the selected track.
+  // The actual route is built by a subsequent BuildRoute() call.
+  PrepareTrackFollowResult PrepareTrackFollow(kml::TrackId trackId, track_following::Direction direction);
+
+  // Same, but stopping at the point the user selected on the track -- the track selection mark the
+  // place page is built around -- instead of at one of its ends. Which way along the track that means
+  // going is decided by where the selected point falls relative to the user.
+  PrepareTrackFollowResult PrepareTrackFollowToSelectedPoint(kml::TrackId trackId);
+  bool IsTrackFollowMode() const { return m_trackFollowState.has_value(); }
+
   void BuildRoute(uint32_t timeoutSec = routing::RouterDelegate::kNoTimeout);
   void SetUserCurrentPosition(m2::PointD const & position);
   void ResetRoutingSession() { m_routingSession.Reset(); }
@@ -323,6 +343,10 @@ private:
   // Active variant uses the route palette; alternatives use a dimmer palette.
   void CreateRouteAltMarks(routing::RoutesResult const & result);
 
+  // Shared tail of the PrepareTrackFollow* entry points: swaps in a track-capable router, replaces
+  // the route points with the track's endpoints and arms the follow state from |plan|.
+  PrepareTrackFollowResult StartTrackFollow(kml::TrackId trackId, std::optional<track_following::Plan> plan);
+
   // Synchronously remove the alternative-route subroutes from drape and clear the alt ETA
   // balloons. Used when entering navigation mode (FollowRoute) so the alts drawn at build
   // time disappear immediately. The active route is left untouched.
@@ -346,6 +370,8 @@ private:
   void CancelRecommendation(Recommendation recommendation);
 
   std::vector<RouteMarkData> GetRoutePointsToSave() const;
+
+  void ResetTrackFollowMode();
 
   void OnExtrapolatedLocationUpdate(location::GpsInfo const & info);
 
@@ -377,6 +403,17 @@ private:
   std::map<uint32_t, RoutePointsTransaction> m_routePointsTransactions;
   std::chrono::steady_clock::time_point m_loadRoutePointsTimestamp;
   std::map<std::string, m2::PointF> m_transitSymbolSizes;
+
+  struct TrackFollowState
+  {
+    kml::TrackId m_trackId = kml::kInvalidTrackId;
+    // Corridor the router is biased toward, not a list of points it must visit.
+    // See IRouter::SetTrackCorridor.
+    std::vector<m2::PointD> m_centerline;
+    // 2, or 3 for a closed track, which needs one internal via-point to pin down its direction.
+    size_t m_checkpointsCount = 2;
+  };
+  std::optional<TrackFollowState> m_trackFollowState;
 
   std::shared_ptr<routing::NumMwmIds> m_numMwmIDs;
   std::shared_ptr<m4::Tree<routing::NumMwmId>> m_numMwmTree;

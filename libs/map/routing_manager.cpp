@@ -352,6 +352,15 @@ RoutingManager::RoutingManager(Callbacks && callbacks, Delegate & delegate)
   {
     GetPlatform().RunTask(Platform::Thread::Gui, [this, passedCheckpointIdx]()
     {
+      if (m_trackFollowState)
+      {
+        // A closed track carries one internal via-point that has no route mark of its own, so only
+        // the last checkpoint corresponds to the visible finish.
+        if (passedCheckpointIdx + 1 == m_trackFollowState->m_checkpointsCount)
+          OnRoutePointPassed(RouteMarkType::Finish, 0);
+        return;
+      }
+
       size_t const pointsCount = GetRoutePointsCount();
 
       // TODO(@bykoianko). Since routing system may invoke callbacks from different threads and here
@@ -1011,6 +1020,7 @@ void RoutingManager::CloseRouting(bool removeRoutePoints)
 
   if (removeRoutePoints)
   {
+    ResetTrackFollowMode();
     m_bmManager->GetEditSession().ClearGroup(UserMark::Type::ROUTING);
     CancelRecommendation(Recommendation::RebuildAfterPointsLoading);
   }
@@ -1053,7 +1063,7 @@ size_t RoutingManager::GetRoutePointsCount() const
 
 bool RoutingManager::CouldAddIntermediatePoint() const
 {
-  if (!IsRoutingActive())
+  if (!IsRoutingActive() || m_trackFollowState)
     return false;
 
   return m_bmManager->GetUserMarkIds(UserMark::Type::ROUTING).size() < RoutePointsLayout::kMaxRoutePointsCount;
@@ -1061,6 +1071,7 @@ bool RoutingManager::CouldAddIntermediatePoint() const
 
 void RoutingManager::AddRoutePoint(RouteMarkData && markData, bool reorderIntermediatePoints)
 {
+  ResetTrackFollowMode();
   ASSERT(m_bmManager != nullptr, ());
   RoutePointsLayout routePoints(*m_bmManager);
 
@@ -1114,11 +1125,13 @@ bool RoutingManager::ContinueRouteToPoint(RouteMarkData && markData)
   markData.m_intermediateIndex = routePoints.GetRoutePointsCount() - 1;
   markData.m_isVisible = !markData.m_isMyPosition;
   routePoints.AddRoutePoint(std::move(markData));
+  ResetTrackFollowMode();
   return true;
 }
 
 void RoutingManager::RemoveRoutePoint(RouteMarkType type, size_t intermediateIndex)
 {
+  ResetTrackFollowMode();
   ASSERT(m_bmManager != nullptr, ());
   RoutePointsLayout routePoints(*m_bmManager);
   routePoints.RemoveRoutePoint(type, intermediateIndex);
@@ -1126,6 +1139,7 @@ void RoutingManager::RemoveRoutePoint(RouteMarkType type, size_t intermediateInd
 
 void RoutingManager::RemoveRoutePoints()
 {
+  ResetTrackFollowMode();
   ASSERT(m_bmManager != nullptr, ());
   RoutePointsLayout routePoints(*m_bmManager);
   routePoints.RemoveRoutePoints();
@@ -1133,6 +1147,7 @@ void RoutingManager::RemoveRoutePoints()
 
 void RoutingManager::RemoveIntermediateRoutePoints()
 {
+  ResetTrackFollowMode();
   ASSERT(m_bmManager != nullptr, ());
   RoutePointsLayout routePoints(*m_bmManager);
   routePoints.RemoveIntermediateRoutePoints();
@@ -1160,6 +1175,7 @@ void RoutingManager::RemovePassedRoutePoints()
 void RoutingManager::MoveRoutePoint(RouteMarkType currentType, size_t currentIntermediateIndex,
                                     RouteMarkType targetType, size_t targetIntermediateIndex)
 {
+  ResetTrackFollowMode();
   ASSERT(m_bmManager != nullptr, ());
   RoutePointsLayout routePoints(*m_bmManager);
   routePoints.MoveRoutePoint(currentType, currentIntermediateIndex, targetType, targetIntermediateIndex);
@@ -1167,6 +1183,7 @@ void RoutingManager::MoveRoutePoint(RouteMarkType currentType, size_t currentInt
 
 void RoutingManager::MoveRoutePoint(size_t currentIndex, size_t targetIndex)
 {
+  ResetTrackFollowMode();
   ASSERT(m_bmManager != nullptr, ());
 
   RoutePointsLayout routePoints(*m_bmManager);
@@ -1252,6 +1269,82 @@ void RoutingManager::GenerateNotifications(std::vector<std::string> & turnNotifi
   m_routingSession.GenerateNotifications(turnNotifications, announceStreets);
 }
 
+RoutingManager::PrepareTrackFollowResult RoutingManager::PrepareTrackFollow(kml::TrackId trackId,
+                                                                            track_following::Direction direction)
+{
+  CHECK_THREAD_CHECKER(m_threadChecker, ("PrepareTrackFollow"));
+  ASSERT(m_bmManager != nullptr, ());
+
+  auto const * track = m_bmManager->GetTrack(trackId);
+  if (track == nullptr || trackId == kml::kTempRelationTrackId)
+    return PrepareTrackFollowResult::TrackNotFound;
+
+  auto const & myPosition = m_bmManager->MyPositionMark();
+  if (!myPosition.HasPosition())
+    return PrepareTrackFollowResult::NoCurrentPosition;
+
+  auto plan = track_following::MakePlan(track->GetData().m_geometry, myPosition.GetPivot(), direction);
+  return StartTrackFollow(trackId, std::move(plan));
+}
+
+RoutingManager::PrepareTrackFollowResult RoutingManager::PrepareTrackFollowToSelectedPoint(kml::TrackId trackId)
+{
+  CHECK_THREAD_CHECKER(m_threadChecker, ("PrepareTrackFollowToSelectedPoint"));
+  ASSERT(m_bmManager != nullptr, ());
+
+  auto const * track = m_bmManager->GetTrack(trackId);
+  if (track == nullptr || trackId == kml::kTempRelationTrackId)
+    return PrepareTrackFollowResult::TrackNotFound;
+
+  auto const & myPosition = m_bmManager->MyPositionMark();
+  if (!myPosition.HasPosition())
+    return PrepareTrackFollowResult::NoCurrentPosition;
+
+  // Where the user tapped the track, as marked on the map. Tapping a track always lands on the track
+  // itself (see Track::UpdateSelectionInfo), so this is a point of the track, not the raw tap.
+  auto const selection = m_bmManager->GetTrackSelectionInfo(trackId);
+  if (!selection.IsValid())
+    return PrepareTrackFollowResult::InvalidGeometry;
+
+  auto plan = track_following::MakePlanTo(track->GetData().m_geometry, myPosition.GetPivot(), selection.m_trackPoint);
+  return StartTrackFollow(trackId, std::move(plan));
+}
+
+RoutingManager::PrepareTrackFollowResult RoutingManager::StartTrackFollow(kml::TrackId trackId,
+                                                                          std::optional<track_following::Plan> plan)
+{
+  if (!plan)
+    return PrepareTrackFollowResult::InvalidGeometry;
+
+  auto const * track = m_bmManager->GetTrack(trackId);
+  CHECK(track != nullptr, ());
+
+  // Track matching currently relies on normal pedestrian/bicycle road snapping. Do not let a
+  // previously selected transit/ruler/car profile turn a hiking track into an unrelated route.
+  if (m_currentRouterType != RouterType::Pedestrian && m_currentRouterType != RouterType::Bicycle)
+    SetRouter(RouterType::Pedestrian);
+
+  CloseRouting(true /* remove route points */);
+
+  RouteMarkData start;
+  start.m_pointType = RouteMarkType::Start;
+  start.m_isMyPosition = true;
+  start.m_position = m_bmManager->MyPositionMark().GetPivot();
+  AddRoutePoint(std::move(start));
+
+  RouteMarkData finish;
+  finish.m_pointType = RouteMarkType::Finish;
+  finish.m_title = track->GetName();
+  finish.m_position = plan->m_centerline.back();
+  AddRoutePoint(std::move(finish));
+
+  TrackFollowState state;
+  state.m_trackId = trackId;
+  state.m_centerline = std::move(plan->m_centerline);
+  m_trackFollowState = std::move(state);
+  return PrepareTrackFollowResult::Success;
+}
+
 void RoutingManager::BuildRoute(uint32_t timeoutSec)
 {
   CHECK_THREAD_CHECKER(m_threadChecker, ("BuildRoute"));
@@ -1287,16 +1380,20 @@ void RoutingManager::BuildRoute(uint32_t timeoutSec)
     p.m_position = myPosition.GetPivot();
   }
 
-  // Check for equal points.
-  for (size_t i = 0; i < routePoints.size(); i++)
+  // Check for equal points. A circular followed track intentionally has equal visible start and
+  // finish points while its invisible shaping points still form a non-empty route.
+  if (!m_trackFollowState)
   {
-    for (size_t j = i + 1; j < routePoints.size(); j++)
+    for (size_t i = 0; i < routePoints.size(); i++)
     {
-      if (routePoints[i].m_position.EqualDxDy(routePoints[j].m_position, mercator::kPointEqualityEps))
+      for (size_t j = i + 1; j < routePoints.size(); j++)
       {
-        CallRouteBuilded(RouterResultCode::Cancelled, storage::CountriesSet());
-        CloseRouting(false /* remove route points */);
-        return;
+        if (routePoints[i].m_position.EqualDxDy(routePoints[j].m_position, mercator::kPointEqualityEps))
+        {
+          CallRouteBuilded(RouterResultCode::Cancelled, storage::CountriesSet());
+          CloseRouting(false /* remove route points */);
+          return;
+        }
       }
     }
   }
@@ -1319,9 +1416,32 @@ void RoutingManager::BuildRoute(uint32_t timeoutSec)
   m_routingSession.SetUserCurrentPosition(routePoints.front().m_position);
 
   std::vector<m2::PointD> points;
-  points.reserve(routePoints.size());
+  points.reserve(routePoints.size() + 1);
   for (auto const & point : routePoints)
     points.push_back(point.m_position);
+
+  if (m_trackFollowState)
+  {
+    ASSERT_EQUAL(routePoints.size(), 2, ());
+    auto & state = *m_trackFollowState;
+
+    // The track is followed by biasing the search graph toward it, not by forcing the route through a
+    // chain of via-points. Via-points are what used to make it detour at intersections just to touch
+    // a point it had snapped ambiguously.
+    m_routingSession.SetTrackCorridor(state.m_centerline);
+
+    // A closed track's start and finish coincide, which on its own would collapse into an empty
+    // route. A single via-point half way round is the least that pins down which way to go; the
+    // corridor shapes everything between.
+    if (points.front().EqualDxDy(points.back(), mercator::kPointEqualityEps))
+      points.insert(points.begin() + 1, track_following::PointAtHalfLength(state.m_centerline));
+
+    state.m_checkpointsCount = points.size();
+  }
+  else
+  {
+    m_routingSession.SetTrackCorridor({});
+  }
 
   m_routingSession.BuildRoute(Checkpoints(std::move(points)), timeoutSec);
 }
@@ -1498,6 +1618,9 @@ void RoutingManager::SetRouter(RouterType type)
 {
   CHECK_THREAD_CHECKER(m_threadChecker, ("SetRouter"));
 
+  if (m_trackFollowState && type != RouterType::Pedestrian && type != RouterType::Bicycle)
+    return;
+
   if (m_currentRouterType == type)
     return;
 
@@ -1566,6 +1689,7 @@ void RoutingManager::CancelRoutePointsTransaction(uint32_t transactionId)
       ++it;
 
   // Revert route points.
+  ResetTrackFollowMode();
   ASSERT(m_bmManager != nullptr, ());
   auto editSession = m_bmManager->GetEditSession();
   editSession.ClearGroup(UserMark::Type::ROUTING);
@@ -1681,6 +1805,11 @@ void RoutingManager::SaveRoutePoints()
 
 std::vector<RouteMarkData> RoutingManager::GetRoutePointsToSave() const
 {
+  // Track-follow shaping points are not persisted yet. Saving only the visible endpoints would
+  // silently restore a normal shortest route after restart.
+  if (m_trackFollowState)
+    return {};
+
   auto points = GetRoutePoints();
   if (points.size() < 2 || points.back().m_isPassed)
     return {};
@@ -1705,6 +1834,12 @@ std::vector<RouteMarkData> RoutingManager::GetRoutePointsToSave() const
     return {};
 
   return result;
+}
+
+void RoutingManager::ResetTrackFollowMode()
+{
+  m_trackFollowState.reset();
+  m_routingSession.SetTrackCorridor({});
 }
 
 void RoutingManager::OnExtrapolatedLocationUpdate(location::GpsInfo const & info)

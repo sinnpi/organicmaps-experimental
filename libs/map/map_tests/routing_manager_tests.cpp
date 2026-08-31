@@ -2,6 +2,9 @@
 
 #include "map/framework.hpp"
 #include "map/routing_mark.hpp"
+#include "map/track_following.hpp"
+
+#include "geometry/mercator.hpp"
 
 #include <algorithm>
 #include <vector>
@@ -65,5 +68,47 @@ UNIT_TEST(RoutingManager_ContinueRouteToPointWithoutFinishFailsCleanly)
   auto newFinish = MakeRoutePoint(RouteMarkType::Finish, 0, 1.0);
   TEST(!routingManager.ContinueRouteToPoint(std::move(newFinish)), ());
   TEST_EQUAL(routingManager.GetRoutePointsCount(), 0, ());
+}
+
+UNIT_TEST(RoutingManager_PrepareTrackFollowCreatesOnlyTerminalRouteMarks)
+{
+  Framework framework(FrameworkParams(false /* m_enableDiffs */));
+  auto & bookmarkManager = framework.GetBookmarkManager();
+  auto & routingManager = framework.GetRoutingManager();
+
+  auto const currentPosition = mercator::FromLatLon(0.001, 0.005);
+  bookmarkManager.MyPositionMark().SetUserPosition(currentPosition, true /* hasPosition */);
+
+  kml::TrackData trackData;
+  kml::SetDefaultStr(trackData.m_name, "Test track");
+  trackData.m_layers.emplace_back();
+  trackData.m_geometry.AddLine({{mercator::FromLatLon(0.0, 0.0), 0},
+                                {mercator::FromLatLon(0.0, 0.01), 0},
+                                {mercator::FromLatLon(0.0, 0.02), 0}});
+  // MultiGeometry keeps one timestamp list per line and asserts the two stay in step.
+  trackData.m_geometry.AddTimestamps({});
+
+  kml::TrackId trackId;
+  {
+    auto editSession = bookmarkManager.GetEditSession();
+    trackId = editSession.CreateTrack(std::move(trackData))->GetId();
+  }
+  auto const result = routingManager.PrepareTrackFollow(trackId, track_following::Direction::Forward);
+
+  TEST(result == RoutingManager::PrepareTrackFollowResult::Success, ());
+  TEST(routingManager.IsTrackFollowMode(), ());
+  auto const routePoints = routingManager.GetRoutePoints();
+  TEST_EQUAL(routePoints.size(), 2, ());
+  TEST(routePoints.front().m_pointType == RouteMarkType::Start, ());
+  TEST(routePoints.front().m_isMyPosition, ());
+  TEST(routePoints.back().m_pointType == RouteMarkType::Finish, ());
+  TEST_EQUAL(routePoints.back().m_title, "Test track", ());
+
+  auto const trackRouter = routingManager.GetRouter();
+  routingManager.SetRouter(routing::RouterType::Vehicle);
+  TEST(routingManager.GetRouter() == trackRouter, ());
+
+  routingManager.RemoveRoutePoints();
+  TEST(!routingManager.IsTrackFollowMode(), ());
 }
 }  // namespace routing_manager_tests

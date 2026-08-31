@@ -65,6 +65,8 @@ set(SRC
   search_product_info.hpp
   track.cpp
   track.hpp
+  track_following.cpp
+  track_following.hpp
   track_statistics.cpp
   track_statistics.hpp
   track_mark.cpp
