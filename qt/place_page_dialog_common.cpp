@@ -89,15 +89,23 @@ QToolBar * createActionToolBar(QWidget * parent, qt::DrawWidget * drawWidget, pl
 
   QAction * toAction = toolBar->addAction(QIcon(":/navig64/point-finish.png"), "Route To");
   toAction->setToolTip("Route To");
-  QObject::connect(toAction, &QAction::triggered, parent,
-                   [drawWidget, mercator] { drawWidget->RoutePointFromPlace(RouteMarkType::Finish, mercator); });
-
-  if (info.IsTrack())
+  if (info.IsTrack() && !info.IsRelationTrack() && settings::IsEnabled(settings::kTrackFollowEnabled))
   {
+    QMenu * menu = new QMenu(toolBar);
+    QObject::connect(menu->addAction("Route To"), &QAction::triggered, parent,
+                     [drawWidget, mercator] { drawWidget->RoutePointFromPlace(RouteMarkType::Finish, mercator); });
+
     kml::TrackId const trackId = info.GetTrackId();
-    QAction * alongAction = toolBar->addAction("Route Along Track");
-    QObject::connect(alongAction, &QAction::triggered, parent,
+    QObject::connect(menu->addAction("Follow Track"), &QAction::triggered, parent,
                      [drawWidget, trackId] { drawWidget->RouteAlongTrack(trackId); });
+    toAction->setMenu(menu);
+    if (auto * button = qobject_cast<QToolButton *>(toolBar->widgetForAction(toAction)))
+      button->setPopupMode(QToolButton::InstantPopup);
+  }
+  else
+  {
+    QObject::connect(toAction, &QAction::triggered, parent,
+                     [drawWidget, mercator] { drawWidget->RoutePointFromPlace(RouteMarkType::Finish, mercator); });
   }
 
   if (info.ShouldShowEditPlace())

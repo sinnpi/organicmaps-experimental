@@ -110,6 +110,13 @@ PreferencesDialog::PreferencesDialog(QWidget * parent, Framework & framework)
             [](int i) { settings::Set(settings::kDeveloperMode, static_cast<bool>(i)); });
   }
 
+  QCheckBox * trackFollowCheckBox = new QCheckBox("Enable track following (experimental)");
+  {
+    trackFollowCheckBox->setChecked(settings::IsEnabled(settings::kTrackFollowEnabled));
+    connect(trackFollowCheckBox, &QCheckBox::stateChanged,
+            [](int i) { settings::Set(settings::kTrackFollowEnabled, static_cast<bool>(i)); });
+  }
+
   QLabel * mapLanguageLabel = new QLabel("Map Language");
   QComboBox * mapLanguageComboBox = new QComboBox();
   {
@@ -286,6 +293,7 @@ PreferencesDialog::PreferencesDialog(QWidget * parent, Framework & framework)
   finalLayout->addWidget(largeFontCheckBox);
   finalLayout->addWidget(transliterationCheckBox);
   finalLayout->addWidget(developerModeCheckBox);
+  finalLayout->addWidget(trackFollowCheckBox);
   finalLayout->addWidget(mapLanguageLabel);
   finalLayout->addWidget(mapLanguageComboBox);
   finalLayout->addWidget(bookmarksPlacementLabel);

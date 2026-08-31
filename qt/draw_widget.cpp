@@ -38,6 +38,7 @@
 #include <QtWidgets/QDialog>
 #include <QtWidgets/QDialogButtonBox>
 #include <QtWidgets/QMenu>
+#include <QtWidgets/QMessageBox>
 
 #include <string>
 #include <vector>
@@ -670,8 +671,15 @@ void DrawWidget::RoutePointFromPlace(RouteMarkType type, m2::PointD const & merc
 
 void DrawWidget::RouteAlongTrack(kml::TrackId trackId)
 {
-  m_guideTracks.clear();
-  m_guideTracks[trackId].push_back(m_framework.GetBookmarkManager().GetTrack(trackId)->GetGeometry());
+  auto & routingManager = m_framework.GetRoutingManager();
+  auto const result = routingManager.PrepareTrackFollow(trackId, track_following::Direction::Forward);
+  if (result != RoutingManager::PrepareTrackFollowResult::Success)
+  {
+    QMessageBox::warning(this, "Follow Track", "This track cannot be followed from your current position.");
+    return;
+  }
+
+  routingManager.BuildRoute();
   if (auto * mw = qobject_cast<MainWindow *>(parent()))
     mw->HidePlacePage();
 }
