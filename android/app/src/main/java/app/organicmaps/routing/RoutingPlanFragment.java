@@ -212,6 +212,7 @@ public class RoutingPlanFragment extends Fragment implements View.OnLayoutChange
   private void updateMenuInternal()
   {
     final RoutingController controller = RoutingController.get();
+    updateRouterButtons(controller.isTrackFollowMode());
 
     if (controller.isPlanning())
     {
@@ -307,6 +308,16 @@ public class RoutingPlanFragment extends Fragment implements View.OnLayoutChange
     mRouterTypes.findViewById(buttonId).setOnClickListener(v -> RoutingController.get().setRouterType(router));
   }
 
+  private void updateRouterButtons(boolean trackFollowMode)
+  {
+    for (int buttonId : new int[] {R.id.vehicle, R.id.transit, R.id.ruler})
+    {
+      View button = mRouterTypes.findViewById(buttonId);
+      button.setEnabled(!trackFollowMode);
+      button.setAlpha(trackFollowMode ? 0.3f : 1.0f);
+    }
+  }
+
   @IdRes
   private static int routerToButtonId(@NonNull Router router)
   {
@@ -370,6 +381,7 @@ public class RoutingPlanFragment extends Fragment implements View.OnLayoutChange
     mRouterTypes.check(routerToButtonId(router));
     updateProgressLabels();
     final RoutingController controller = RoutingController.get();
+    updateRouterButtons(controller.isTrackFollowMode());
     if (controller.isBuilding())
     {
       mRoutingBottomMenuController.setStartState(RoutingBottomMenuController.StartState.BUILDING);

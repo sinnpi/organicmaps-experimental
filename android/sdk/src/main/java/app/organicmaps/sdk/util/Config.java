@@ -45,6 +45,7 @@ public final class Config
   private static final String KEY_MISC_AGPS_TIMESTAMP = "AGPSTimestamp";
   private static final String KEY_DONATE_URL = "DonateUrl";
   private static final String KEY_PREF_SEARCH_HISTORY = "SearchHistoryEnabled";
+  private static final String KEY_PREF_TRACK_FOLLOW = "TrackFollowEnabled";
 
   public static final String KEY_PREF_LAST_SEARCHED_TAB = "LastSearchTab";
 
@@ -188,6 +189,16 @@ public final class Config
   public static void setShowZoomButtons(boolean show)
   {
     setBool(KEY_PREF_ZOOM_BUTTONS, show);
+  }
+
+  public static boolean isTrackFollowEnabled()
+  {
+    return getBool(KEY_PREF_TRACK_FOLLOW);
+  }
+
+  public static void setTrackFollowEnabled(boolean enabled)
+  {
+    setBool(KEY_PREF_TRACK_FOLLOW, enabled);
   }
 
   public static void setStatisticsEnabled(boolean enabled)

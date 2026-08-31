@@ -12,6 +12,7 @@ import app.organicmaps.sdk.bookmarks.data.MapObject;
 import app.organicmaps.sdk.location.LocationHelper;
 import app.organicmaps.sdk.util.concurrency.UiThread;
 import app.organicmaps.sdk.util.log.Logger;
+import java.util.function.BooleanSupplier;
 import org.chromium.base.ObserverList;
 
 @androidx.annotation.UiThread
@@ -370,6 +371,43 @@ public class RoutingController
   {
     if (startPoint != null && endPoint != null)
       mLastRouterType = Router.getBest(startPoint.getLat(), startPoint.getLon(), endPoint.getLat(), endPoint.getLon());
+  }
+
+  /**
+   * @param reverse follow the track towards its start instead of its end, for when the user is
+   *                heading to the other end of it.
+   */
+  public boolean prepareTrackFollow(long trackId, boolean reverse)
+  {
+    return prepareTrackFollow(() -> Framework.nativePrepareTrackFollow(trackId, reverse));
+  }
+
+  /**
+   * Follows the track only as far as the point the user selected on it, rather than to either end.
+   */
+  public boolean prepareTrackFollowToSelectedPoint(long trackId)
+  {
+    return prepareTrackFollow(() -> Framework.nativePrepareTrackFollowToSelectedPoint(trackId));
+  }
+
+  private boolean prepareTrackFollow(@NonNull BooleanSupplier prepare)
+  {
+    cancel();
+
+    // Keep an explicitly selected bicycle profile; otherwise tracks start with pedestrian routing.
+    mLastRouterType = mLastRouterType == Router.Bicycle ? Router.Bicycle : Router.Pedestrian;
+    Router.set(mLastRouterType);
+    if (!prepare.getAsBoolean())
+      return false;
+
+    setState(State.PREPARE);
+    startPlanning(getStartPoint(), getEndPoint());
+    return true;
+  }
+
+  public boolean isTrackFollowMode()
+  {
+    return Framework.nativeIsTrackFollowMode();
   }
 
   public void prepare(final @Nullable MapObject startPoint, final @Nullable MapObject endPoint, Router routerType)
@@ -905,6 +943,9 @@ public class RoutingController
 
   public void swapPoints()
   {
+    if (isTrackFollowMode())
+      return;
+
     Logger.d(TAG, "swapPoints");
 
     MapObject startPoint = getStartPoint();
@@ -921,6 +962,9 @@ public class RoutingController
 
   public void setRouterType(Router router)
   {
+    if (isTrackFollowMode() && router != Router.Pedestrian && router != Router.Bicycle)
+      return;
+
     Logger.d(TAG, "setRouterType: " + mLastRouterType + " -> " + router);
 
     // Nothing to rebuild when the already selected router type is tapped again.

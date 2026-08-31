@@ -160,9 +160,16 @@
       android:persistent="false"
       android:order="4">
     </Preference>
+    <SwitchPreferenceCompat
+      android:key="@string/pref_track_follow"
+      android:title="@string/enable_track_following"
+      android:summary="@string/enable_track_following_summary"
+      app:singleLineTitle="false"
+      android:defaultValue="false"
+      android:order="5" />
     <PreferenceScreen
       android:key="@string/prefs_routing"
-      android:order="5"
+      android:order="6"
       android:title="@string/driving_options_title">
       <intent
         android:targetClass="app.organicmaps.settings.DrivingOptionsActivity"

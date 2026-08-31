@@ -13,6 +13,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewOutlineProvider;
+import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.graphics.Insets;
@@ -39,6 +40,7 @@ import app.organicmaps.sdk.location.TrackRecorder;
 import app.organicmaps.sdk.routing.RouteMarkType;
 import app.organicmaps.sdk.routing.RoutingController;
 import app.organicmaps.sdk.settings.RoadType;
+import app.organicmaps.sdk.util.Config;
 import app.organicmaps.sdk.util.log.Logger;
 import app.organicmaps.util.UiUtils;
 import app.organicmaps.util.bottomsheet.MenuBottomSheetFragment;
@@ -47,6 +49,7 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.LongPredicate;
 
 public class PlacePageController
     extends Fragment implements PlacePageView.PlacePageViewListener, PlacePageButtons.PlacePageButtonClickListener,
@@ -55,6 +58,7 @@ public class PlacePageController
   private static final String TAG = PlacePageController.class.getSimpleName();
   private static final String PLACE_PAGE_BUTTONS_FRAGMENT_TAG = "PLACE_PAGE_BUTTONS";
   private static final String PLACE_PAGE_FRAGMENT_TAG = "PLACE_PAGE";
+  private static final String TRACK_NAVIGATION_MENU_ID = "TRACK_NAVIGATION_MENU";
   // Slide offset threshold below collapsed (0.0) at which the sheet is dismissed.
   private static final float EASY_DISMISS_SLIDE_THRESHOLD = -0.15f;
 
@@ -232,6 +236,19 @@ public class PlacePageController
   @Nullable
   public ArrayList<MenuBottomSheetItem> getMenuBottomSheetItems(String id)
   {
+    if (TRACK_NAVIGATION_MENU_ID.equals(id))
+    {
+      ArrayList<MenuBottomSheetItem> items = new ArrayList<>();
+      items.add(new MenuBottomSheetItem(R.string.p2p_to_here, R.drawable.ic_route_to, this::navigateToSelectedPoint));
+      items.add(new MenuBottomSheetItem(R.string.follow_track_to_here, R.drawable.ic_route_to,
+                                        this::followSelectedTrackToSelectedPoint));
+      items.add(new MenuBottomSheetItem(R.string.follow_track, R.drawable.ic_route_to,
+                                        () -> followSelectedTrack(false /* reverse */)));
+      items.add(new MenuBottomSheetItem(R.string.follow_track_reverse, R.drawable.ic_route_to,
+                                        () -> followSelectedTrack(true /* reverse */)));
+      return items;
+    }
+
     final List<PlacePageButtons.ButtonType> currentItems = mViewModel.getCurrentButtons().getValue();
     if (currentItems == null || currentItems.size() <= mMaxButtons)
       return null;
@@ -543,10 +560,55 @@ public class PlacePageController
   {
     if (mMapObject == null)
       return;
+
+    RoutingController controller = RoutingController.get();
+    // While an ordinary route is being planned this button appends a destination to it, so the menu
+    // would take that away. A track-follow plan is not being composed that way -- it has no
+    // intermediate points to add to -- so there picking another track replaces the followed one.
+    if ((!controller.isPlanning() || controller.isTrackFollowMode()) && Config.isTrackFollowEnabled()
+        && mMapObject instanceof Track track && !track.isRelationTrack())
+    {
+      MenuBottomSheetFragment.newInstance(TRACK_NAVIGATION_MENU_ID, mMapObject.getTitle())
+          .show(getChildFragmentManager(), TRACK_NAVIGATION_MENU_ID);
+      return;
+    }
+
+    navigateToSelectedPoint();
+  }
+
+  private void navigateToSelectedPoint()
+  {
+    if (mMapObject == null)
+      return;
     if (RoutingController.get().isPlanning())
       commitRoutePoint(RouteMarkType.Finish, mMapObject);
     else
       ((MwmActivity) requireActivity()).startLocationToPoint(mMapObject);
+  }
+
+  private void followSelectedTrack(boolean reverse)
+  {
+    startTrackFollow(trackId -> RoutingController.get().prepareTrackFollow(trackId, reverse));
+  }
+
+  // Follows the track only as far as the point the user tapped on it, rather than to either end.
+  private void followSelectedTrackToSelectedPoint()
+  {
+    startTrackFollow(trackId -> RoutingController.get().prepareTrackFollowToSelectedPoint(trackId));
+  }
+
+  private void startTrackFollow(@NonNull LongPredicate prepare)
+  {
+    if (!(mMapObject instanceof Track track))
+      return;
+
+    ((MwmActivity) requireActivity()).forceCloseSearchFragment();
+    if (!prepare.test(track.getTrackId()))
+    {
+      Toast.makeText(requireContext(), R.string.track_follow_unavailable, Toast.LENGTH_LONG).show();
+      return;
+    }
+    close();
   }
 
   private void commitRoutePoint(@NonNull RouteMarkType type, @NonNull MapObject point)

@@ -61,6 +61,7 @@ public class SettingsPrefsFragment extends BaseXmlSettingsFragment implements La
     init3dModePrefsCallbacks();
     initPerspectivePrefsCallbacks();
     initAutoZoomPrefsCallbacks();
+    initTrackFollowPrefsCallbacks();
     initLoggingEnabledPrefsCallbacks();
     initEmulationBadStorage();
     initUseMobileDataPrefsCallbacks();
@@ -252,6 +253,16 @@ public class SettingsPrefsFragment extends BaseXmlSettingsFragment implements La
     pref.setChecked(autozoomEnabled);
     pref.setOnPreferenceChangeListener((preference, newValue) -> {
       Framework.nativeSetAutoZoomEnabled((boolean) newValue);
+      return true;
+    });
+  }
+
+  private void initTrackFollowPrefsCallbacks()
+  {
+    final TwoStatePreference pref = getPreference(getString(R.string.pref_track_follow));
+    pref.setChecked(Config.isTrackFollowEnabled());
+    pref.setOnPreferenceChangeListener((preference, newValue) -> {
+      Config.setTrackFollowEnabled((boolean) newValue);
       return true;
     });
   }

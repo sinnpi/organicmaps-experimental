@@ -226,6 +226,12 @@ public class Framework
 
   public static native void nativeBuildRoute();
 
+  public static native boolean nativePrepareTrackFollow(long trackId, boolean reverse);
+
+  public static native boolean nativePrepareTrackFollowToSelectedPoint(long trackId);
+
+  public static native boolean nativeIsTrackFollowMode();
+
   public static native void nativeRemoveRoute();
 
   public static native void nativeFollowRoute();

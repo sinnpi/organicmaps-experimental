@@ -1256,6 +1256,26 @@ JNIEXPORT void Java_app_organicmaps_sdk_Framework_nativeBuildRoute(JNIEnv * env,
   frm()->GetRoutingManager().BuildRoute();
 }
 
+JNIEXPORT jboolean Java_app_organicmaps_sdk_Framework_nativePrepareTrackFollow(JNIEnv *, jclass, jlong trackId,
+                                                                               jboolean reverse)
+{
+  auto const direction = reverse ? track_following::Direction::Reverse : track_following::Direction::Forward;
+  auto const result = frm()->GetRoutingManager().PrepareTrackFollow(static_cast<kml::TrackId>(trackId), direction);
+  return result == RoutingManager::PrepareTrackFollowResult::Success;
+}
+
+JNIEXPORT jboolean Java_app_organicmaps_sdk_Framework_nativePrepareTrackFollowToSelectedPoint(JNIEnv *, jclass,
+                                                                                              jlong trackId)
+{
+  auto const result = frm()->GetRoutingManager().PrepareTrackFollowToSelectedPoint(static_cast<kml::TrackId>(trackId));
+  return result == RoutingManager::PrepareTrackFollowResult::Success;
+}
+
+JNIEXPORT jboolean Java_app_organicmaps_sdk_Framework_nativeIsTrackFollowMode(JNIEnv *, jclass)
+{
+  return frm()->GetRoutingManager().IsTrackFollowMode();
+}
+
 JNIEXPORT void Java_app_organicmaps_sdk_Framework_nativeRemoveRoute(JNIEnv * env, jclass)
 {
   frm()->GetRoutingManager().RemoveRoute(false /* deactivateFollowing */);
