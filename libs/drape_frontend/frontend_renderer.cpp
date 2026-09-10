@@ -58,7 +58,7 @@ double constexpr kVSyncIntervalMetalVulkan = 0.03;
 // Short enough to be imperceptible when the surface becomes available again.
 auto constexpr kBlockedFrameSleep = std::chrono::milliseconds(32);
 
-float constexpr kLowPowerContextOpacity = 0.7f;
+float constexpr kLowPowerContextOpacity = 0.6f;
 
 std::string const kTransitBackgroundColor = "TransitBackground";
 
@@ -1554,7 +1554,8 @@ void FrontendRenderer::RenderScene(ScreenBase const & modelView, bool activeFram
         // Search results are placed without the overlay tree, which is not built in this mode.
         RenderNonDisplaceableUserMarksLayer(modelView, DepthLayer::SearchMarkLayer);
       }
-      if (m_selectionShape && m_selectionShape->GetSelectedObject() == SelectionShape::OBJECT_TRACK)
+      // Keep the selected point visible even when regular map overlays are suppressed.
+      if (m_selectionShape && m_selectionShape->GetSelectedObject() != SelectionShape::OBJECT_MY_POSITION)
         m_selectionShape->Render(m_context, make_ref(m_gpuProgramManager), modelView, GetCurrentZoom(), m_frameValues);
     }
     else

@@ -2,6 +2,8 @@
 
 #include "map/framework.hpp"
 
+#include "drape_frontend/visual_params.hpp"
+
 #include "geometry/any_rect2d.hpp"
 #include "geometry/mercator.hpp"
 
@@ -45,5 +47,35 @@ UNIT_TEST(Framework_GetViewportCenter)
     TEST_ALMOST_EQUAL_ABS(actual.x, mercator::WrapX(target.x), kEps, (perspective));
     TEST_ALMOST_EQUAL_ABS(actual.y, target.y, kEps, (perspective));
   }
+}
+UNIT_TEST(Framework_LowPowerDoesNotSelectHiddenTracks)
+{
+  df::VisualParams::Init(1.0, 256);
+  TestFramework framework;
+  auto & bookmarks = framework.GetBookmarkManager();
+  auto const point = mercator::FromLatLon(0.0, 0.005);
+  ScreenBase screen;
+  screen.SetFromRects(m2::AnyRectD(m2::RectD(-0.01, -0.01, 0.02, 0.01)), m2::RectD(0, 0, 1000, 1000));
+  framework.SetViewport(screen, screen.PixelRect());
+
+  kml::TrackData data;
+  data.m_layers.emplace_back();
+  data.m_geometry.AddLine({{mercator::FromLatLon(0.0, 0.0), 0}, {mercator::FromLatLon(0.0, 0.01), 0}});
+  data.m_geometry.AddTimestamps({});
+  auto const categoryId = bookmarks.CreateBookmarkCategory("Test tracks");
+  auto const trackId = bookmarks.GetEditSession().CreateTrack(std::move(data))->GetId();
+  bookmarks.GetEditSession().AttachTrack(trackId, categoryId);
+  bookmarks.SetTrackSelectionInfo({trackId, point, 0.0}, false /* notifyListeners */);
+
+  place_page::BuildInfo tap;
+  tap.m_mercator = point;
+  framework.SetLowPowerNavigationMode(true);
+  framework.BuildAndSetPlacePageInfo(tap);
+  TEST(!framework.GetCurrentPlacePageInfo().IsTrack(), ());
+  TEST_EQUAL(framework.GetCurrentPlacePageInfo().GetMercator(), point, ());
+
+  framework.SetLowPowerNavigationMode(false);
+  framework.BuildAndSetPlacePageInfo(tap);
+  TEST(framework.GetCurrentPlacePageInfo().IsTrack(), ());
 }
 }  // namespace framework_viewport_tests

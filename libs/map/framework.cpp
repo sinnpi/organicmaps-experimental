@@ -2741,7 +2741,9 @@ place_page::Info Framework::BuildPlacePageInfo(place_page::BuildInfo const & bui
     else
     {
       Track::TrackSelectionInfo trackToSelect;
-      auto trackSelectionCandidates = FindRelationTracksInTapPosition(tap.m_lineCandidates, buildInfo.m_mercator);
+      auto trackSelectionCandidates = m_lowPowerNavigationMode
+                                        ? std::vector<Track::TrackSelectionInfo>{}
+                                        : FindRelationTracksInTapPosition(tap.m_lineCandidates, buildInfo.m_mercator);
       std::sort(trackSelectionCandidates.begin(), trackSelectionCandidates.end(), HasHigherTrackSelectionPriority);
 
       if (!trackSelectionCandidates.empty())
@@ -2805,6 +2807,11 @@ std::vector<Track::TrackSelectionInfo> Framework::FindTracksInTapPosition(place_
     CHECK(selection.IsValid(), ());
     return {selection};
   }
+  // Low-power rendering omits the user-line layer: invisible tracks must not capture map taps.
+  // Explicit selections from the saved-track list are handled above.
+  if (m_lowPowerNavigationMode)
+    return {};
+
   auto const touchRect = df::TapInfo::GetDefaultTapRect(buildInfo.m_mercator, m_currentModelView).GetGlobalRect();
   return bm.FindTracksInRect(touchRect);
 }
@@ -2825,6 +2832,9 @@ UserMark const * Framework::FindUserMarkInTapPosition(place_page::BuildInfo cons
 
     return df::TapInfo::GetDefaultTapRect(buildInfo.m_mercator, m_currentModelView);
   }, [](UserMark::Type type) { return type == UserMark::Type::TRACK_INFO || type == UserMark::Type::TRACK_SELECTION; });
+  if (m_lowPowerNavigationMode && mark &&
+      (mark->GetMarkType() == UserMark::Type::TRACK_INFO || mark->GetMarkType() == UserMark::Type::TRACK_SELECTION))
+    return nullptr;
   return mark;
 }
 
