@@ -69,6 +69,8 @@
 		A10000000000000000000055 /* TTSLanguageSettingsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000058 /* TTSLanguageSettingsModels.swift */; };
 		A10000000000000000000056 /* TTSLanguageSettingsPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000059 /* TTSLanguageSettingsPresenter.swift */; };
 		A630D1EA207CA95900976DEA /* Localizable.stringsdict in Resources */ = {isa = PBXBuildFile; fileRef = A630D1E8207CA95900976DEA /* Localizable.stringsdict */; };
+		A13418010000000000000002 /* CarPlayManeuverMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = A13418010000000000000001 /* CarPlayManeuverMapper.swift */; };
+		A13418010000000000000004 /* CarPlayManeuverMapperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A13418010000000000000003 /* CarPlayManeuverMapperTests.swift */; };
 		B26883EF0814407A8B1D73AF /* PlacePageUserDescriptionWebViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4584F20AAF794B9683B14087 /* PlacePageUserDescriptionWebViewTests.swift */; };
 		BB25B1A71FB32767007276FA /* transit_colors.txt in Resources */ = {isa = PBXBuildFile; fileRef = BB25B1A51FB32767007276FA /* transit_colors.txt */; };
 		BB7626B61E85599C0031D71C /* icudt78l.dat in Resources */ = {isa = PBXBuildFile; fileRef = BB7626B41E8559980031D71C /* icudt78l.dat */; };
@@ -114,7 +116,7 @@
 		F0A0B0012FF2ABCD00FA103D /* BookmarksListCellConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A0B0002FF2ABCD00FA103D /* BookmarksListCellConfiguration.swift */; };
 		ED82C4FD2F90180300FA103D /* BookmarksListCellStrategy.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED82C2A82F90180300FA103D /* BookmarksListCellStrategy.swift */; };
 		ED82C4FE2F90180300FA103D /* BookmarksListSectionHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED82C2A92F90180300FA103D /* BookmarksListSectionHeader.swift */; };
-		ED82C4FF2F90180300FA103D /* SubgroupCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED82C2AB2F90180300FA103D /* SubgroupCell.swift */; };
+		ED82C4FF2F90180300FA103D /* BookmarksListSubgroupCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED82C2AB2F90180300FA103D /* BookmarksListSubgroupCell.swift */; };
 		ED82C5002F90180300FA103D /* BookmarksListBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED82C2AE2F90180300FA103D /* BookmarksListBuilder.swift */; };
 		ED82C5012F90180300FA103D /* BookmarksListInfoViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED82C2AF2F90180300FA103D /* BookmarksListInfoViewController.swift */; };
 		ED82C5022F90180300FA103D /* BookmarksListInteractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED82C2B12F90180300FA103D /* BookmarksListInteractor.swift */; };
@@ -381,7 +383,7 @@
 		ED82C61C2F90180300FA103D /* DefaultTranslationController.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED82C4ED2F90180300FA103D /* DefaultTranslationController.swift */; };
 		ED82C61D2F90180300FA103D /* MWMAutoupdateController.xib in Resources */ = {isa = PBXBuildFile; fileRef = ED82C2992F90180300FA103D /* MWMAutoupdateController.xib */; };
 		ED82C61F2F90180300FA103D /* BookmarksListSectionHeader.xib in Resources */ = {isa = PBXBuildFile; fileRef = ED82C2AA2F90180300FA103D /* BookmarksListSectionHeader.xib */; };
-		ED82C6202F90180300FA103D /* SubgroupCell.xib in Resources */ = {isa = PBXBuildFile; fileRef = ED82C2AC2F90180300FA103D /* SubgroupCell.xib */; };
+		ED82C6202F90180300FA103D /* BookmarksListSubgroupCell.xib in Resources */ = {isa = PBXBuildFile; fileRef = ED82C2AC2F90180300FA103D /* BookmarksListSubgroupCell.xib */; };
 		ED82C6212F90180300FA103D /* BookmarksListInfoViewController.xib in Resources */ = {isa = PBXBuildFile; fileRef = ED82C2B02F90180300FA103D /* BookmarksListInfoViewController.xib */; };
 		ED82C6222F90180300FA103D /* BookmarksListViewController.xib in Resources */ = {isa = PBXBuildFile; fileRef = ED82C2B62F90180300FA103D /* BookmarksListViewController.xib */; };
 		ED82C6242F90180300FA103D /* BMCViewController.xib in Resources */ = {isa = PBXBuildFile; fileRef = ED82C2BC2F90180300FA103D /* BMCViewController.xib */; };
@@ -592,6 +594,7 @@
 		ED82C8022F90186900FA103D /* UINavigationItem+StyleStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED82C7D12F90186900FA103D /* UINavigationItem+StyleStyle.swift */; };
 		ED82C8032F90186900FA103D /* UINib+Init.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED82C7D22F90186900FA103D /* UINib+Init.swift */; };
 		ED82C8042F90186900FA103D /* UITableView+Cells.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED82C7D32F90186900FA103D /* UITableView+Cells.swift */; };
+		0F13484A0000000000000002 /* UITableViewCell+SeparatorInset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F13484A0000000000000001 /* UITableViewCell+SeparatorInset.swift */; };
 		ED82C8052F90186900FA103D /* UITableView+Updates.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED82C7D42F90186900FA103D /* UITableView+Updates.swift */; };
 		ED82C8062F90186900FA103D /* UITextField+RuntimeAttributes.m in Sources */ = {isa = PBXBuildFile; fileRef = ED82C7D62F90186900FA103D /* UITextField+RuntimeAttributes.m */; };
 		ED82C8072F90186900FA103D /* UITextView+RuntimeAttributes.m in Sources */ = {isa = PBXBuildFile; fileRef = ED82C7D82F90186900FA103D /* UITextView+RuntimeAttributes.m */; };
@@ -662,7 +665,6 @@
 		FA853BCF26BC3B8A0026D455 /* libstorage.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FA853BCE26BC3B8A0026D455 /* libstorage.a */; };
 		FA853BD126BC3B8A0026D455 /* libsuccinct.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FA853BD026BC3B8A0026D455 /* libsuccinct.a */; };
 		FA853BD326BC54530026D455 /* libtransit.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FA853BD226BC54530026D455 /* libtransit.a */; };
-		FA853BD526BC545D0026D455 /* libagg.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FA853BD426BC545D0026D455 /* libagg.a */; };
 		FA853BD726BC54650026D455 /* libpugixml.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FA853BD626BC54650026D455 /* libpugixml.a */; };
 		FA853BD926BC54C80026D455 /* libexpat.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FA853BD826BC54C80026D455 /* libexpat.a */; };
 		FA853BDB26BC54CD0026D455 /* libtraffic.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FA853BDA26BC54CD0026D455 /* libtraffic.a */; };
@@ -926,6 +928,8 @@
 		AC89C2362F2CF86000368057 /* lo */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = lo; path = lo.lproj/Localizable.strings; sourceTree = "<group>"; };
 		AC89C2372F2CF86000368057 /* lo */ = {isa = PBXFileReference; lastKnownFileType = text.plist.stringsdict; name = lo; path = lo.lproj/Localizable.stringsdict; sourceTree = "<group>"; };
 		AC89C2382F2CF86100368057 /* lo */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = lo; path = lo.lproj/LocalizableTypes.strings; sourceTree = "<group>"; };
+		A13418010000000000000001 /* CarPlayManeuverMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarPlayManeuverMapper.swift; sourceTree = "<group>"; };
+		A13418010000000000000003 /* CarPlayManeuverMapperTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarPlayManeuverMapperTests.swift; sourceTree = "<group>"; };
 		BB25B1A51FB32767007276FA /* transit_colors.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = transit_colors.txt; path = ../../data/transit_colors.txt; sourceTree = "<group>"; };
 		BB7626B41E8559980031D71C /* icudt78l.dat */ = {isa = PBXFileReference; lastKnownFileType = file; name = icudt78l.dat; path = ../../data/icudt78l.dat; sourceTree = "<group>"; };
 		DB05F1BC1BF340DE002C974C /* drules_default.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; name = drules_default.bin; path = ../../data/drules_default.bin; sourceTree = "<group>"; };
@@ -976,8 +980,8 @@
 		ED82C2A82F90180300FA103D /* BookmarksListCellStrategy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarksListCellStrategy.swift; sourceTree = "<group>"; };
 		ED82C2A92F90180300FA103D /* BookmarksListSectionHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarksListSectionHeader.swift; sourceTree = "<group>"; };
 		ED82C2AA2F90180300FA103D /* BookmarksListSectionHeader.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = BookmarksListSectionHeader.xib; sourceTree = "<group>"; };
-		ED82C2AB2F90180300FA103D /* SubgroupCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubgroupCell.swift; sourceTree = "<group>"; };
-		ED82C2AC2F90180300FA103D /* SubgroupCell.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = SubgroupCell.xib; sourceTree = "<group>"; };
+		ED82C2AB2F90180300FA103D /* BookmarksListSubgroupCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarksListSubgroupCell.swift; sourceTree = "<group>"; };
+		ED82C2AC2F90180300FA103D /* BookmarksListSubgroupCell.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = BookmarksListSubgroupCell.xib; sourceTree = "<group>"; };
 		ED82C2AE2F90180300FA103D /* BookmarksListBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarksListBuilder.swift; sourceTree = "<group>"; };
 		ED82C2AF2F90180300FA103D /* BookmarksListInfoViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarksListInfoViewController.swift; sourceTree = "<group>"; };
 		ED82C2B02F90180300FA103D /* BookmarksListInfoViewController.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = BookmarksListInfoViewController.xib; sourceTree = "<group>"; };
@@ -1622,6 +1626,7 @@
 		ED82C7D12F90186900FA103D /* UINavigationItem+StyleStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UINavigationItem+StyleStyle.swift"; sourceTree = "<group>"; };
 		ED82C7D22F90186900FA103D /* UINib+Init.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UINib+Init.swift"; sourceTree = "<group>"; };
 		ED82C7D32F90186900FA103D /* UITableView+Cells.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UITableView+Cells.swift"; sourceTree = "<group>"; };
+		0F13484A0000000000000001 /* UITableViewCell+SeparatorInset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UITableViewCell+SeparatorInset.swift"; sourceTree = "<group>"; };
 		ED82C7D42F90186900FA103D /* UITableView+Updates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UITableView+Updates.swift"; sourceTree = "<group>"; };
 		ED82C7D52F90186900FA103D /* UITextField+RuntimeAttributes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "UITextField+RuntimeAttributes.h"; sourceTree = "<group>"; };
 		ED82C7D62F90186900FA103D /* UITextField+RuntimeAttributes.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "UITextField+RuntimeAttributes.m"; sourceTree = "<group>"; };
@@ -1764,7 +1769,6 @@
 		FA853BCE26BC3B8A0026D455 /* libstorage.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libstorage.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		FA853BD026BC3B8A0026D455 /* libsuccinct.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libsuccinct.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		FA853BD226BC54530026D455 /* libtransit.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libtransit.a; sourceTree = BUILT_PRODUCTS_DIR; };
-		FA853BD426BC545D0026D455 /* libagg.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libagg.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		FA853BD626BC54650026D455 /* libpugixml.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libpugixml.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		FA853BD826BC54C80026D455 /* libexpat.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libexpat.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		FA853BDA26BC54CD0026D455 /* libtraffic.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libtraffic.a; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -1838,7 +1842,6 @@
 				FA853BDB26BC54CD0026D455 /* libtraffic.a in Frameworks */,
 				FA853BD926BC54C80026D455 /* libexpat.a in Frameworks */,
 				FA853BD726BC54650026D455 /* libpugixml.a in Frameworks */,
-				FA853BD526BC545D0026D455 /* libagg.a in Frameworks */,
 				FA853BD326BC54530026D455 /* libtransit.a in Frameworks */,
 				FA853BA926BC3B8A0026D455 /* libbase.a in Frameworks */,
 				FA853BAB26BC3B8A0026D455 /* libcoding.a in Frameworks */,
@@ -1932,7 +1935,6 @@
 				FA853BDA26BC54CD0026D455 /* libtraffic.a */,
 				FA853BD826BC54C80026D455 /* libexpat.a */,
 				FA853BD626BC54650026D455 /* libpugixml.a */,
-				FA853BD426BC545D0026D455 /* libagg.a */,
 				FA853BD226BC54530026D455 /* libtransit.a */,
 				FA853BA826BC3B8A0026D455 /* libbase.a */,
 				FA853BAA26BC3B8A0026D455 /* libcoding.a */,
@@ -2004,6 +2006,7 @@
 		4B4153B92BF970BD00EE4B02 /* CarPlay */ = {
 			isa = PBXGroup;
 			children = (
+				A13418010000000000000003 /* CarPlayManeuverMapperTests.swift */,
 				ED914331300168CF0081DF0B /* CarPlaySceneDelegateTests.swift */,
 				ED1ADA322BC6B1B40029209F /* CarPlayServiceTests.swift */,
 			);
@@ -2251,8 +2254,8 @@
 				ED82C2A82F90180300FA103D /* BookmarksListCellStrategy.swift */,
 				ED82C2A92F90180300FA103D /* BookmarksListSectionHeader.swift */,
 				ED82C2AA2F90180300FA103D /* BookmarksListSectionHeader.xib */,
-				ED82C2AB2F90180300FA103D /* SubgroupCell.swift */,
-				ED82C2AC2F90180300FA103D /* SubgroupCell.xib */,
+				ED82C2AB2F90180300FA103D /* BookmarksListSubgroupCell.swift */,
+				ED82C2AC2F90180300FA103D /* BookmarksListSubgroupCell.xib */,
 			);
 			path = Cells;
 			sourceTree = "<group>";
@@ -3565,6 +3568,7 @@
 				ED82C67E2F90186300FA103D /* Template Builders */,
 				ED82C6852F90186300FA103D /* Templates Data */,
 				ED82C6862F90186300FA103D /* CarplayPlaceholderView.swift */,
+				A13418010000000000000001 /* CarPlayManeuverMapper.swift */,
 				ED82C6872F90186300FA103D /* CarPlayRouter.swift */,
 				AB0CA7A50000000000000001 /* CarPlaySceneDelegate.swift */,
 				AB0DB0040000000000000001 /* CarPlayMapOwnershipState.swift */,
@@ -3991,6 +3995,7 @@
 				ED82C7D12F90186900FA103D /* UINavigationItem+StyleStyle.swift */,
 				ED82C7D22F90186900FA103D /* UINib+Init.swift */,
 				ED82C7D32F90186900FA103D /* UITableView+Cells.swift */,
+				0F13484A0000000000000001 /* UITableViewCell+SeparatorInset.swift */,
 				ED82C7D42F90186900FA103D /* UITableView+Updates.swift */,
 				ED82C7D52F90186900FA103D /* UITextField+RuntimeAttributes.h */,
 				ED82C7D62F90186900FA103D /* UITextField+RuntimeAttributes.m */,
@@ -4383,7 +4388,7 @@
 				DB05F1CE1BF340DE002C974C /* drules_vehicle.bin in Resources */,
 				ED82C61D2F90180300FA103D /* MWMAutoupdateController.xib in Resources */,
 				ED82C61F2F90180300FA103D /* BookmarksListSectionHeader.xib in Resources */,
-				ED82C6202F90180300FA103D /* SubgroupCell.xib in Resources */,
+				ED82C6202F90180300FA103D /* BookmarksListSubgroupCell.xib in Resources */,
 				ED82C6212F90180300FA103D /* BookmarksListInfoViewController.xib in Resources */,
 				ED82C6222F90180300FA103D /* BookmarksListViewController.xib in Resources */,
 				ED82C6242F90180300FA103D /* BMCViewController.xib in Resources */,
@@ -4518,7 +4523,7 @@
 				F0A0B0012FF2ABCD00FA103D /* BookmarksListCellConfiguration.swift in Sources */,
 				ED82C4FD2F90180300FA103D /* BookmarksListCellStrategy.swift in Sources */,
 				ED82C4FE2F90180300FA103D /* BookmarksListSectionHeader.swift in Sources */,
-				ED82C4FF2F90180300FA103D /* SubgroupCell.swift in Sources */,
+				ED82C4FF2F90180300FA103D /* BookmarksListSubgroupCell.swift in Sources */,
 				ED82C5002F90180300FA103D /* BookmarksListBuilder.swift in Sources */,
 				ED82C5012F90180300FA103D /* BookmarksListInfoViewController.swift in Sources */,
 				ED82C5022F90180300FA103D /* BookmarksListInteractor.swift in Sources */,
@@ -4669,6 +4674,7 @@
 				ED82C74C2F90186300FA103D /* RouteInfo.swift in Sources */,
 				ED82C74D2F90186300FA103D /* SearchResultInfo.swift in Sources */,
 				ED82C74E2F90186300FA103D /* CarplayPlaceholderView.swift in Sources */,
+				A13418010000000000000002 /* CarPlayManeuverMapper.swift in Sources */,
 				ED82C74F2F90186300FA103D /* CarPlayRouter.swift in Sources */,
 				AB0CA7A50000000000000002 /* CarPlaySceneDelegate.swift in Sources */,
 				AB0DB0010000000000000002 /* CarPlayDashboardMapViewController.swift in Sources */,
@@ -4925,6 +4931,7 @@
 				ED82C8022F90186900FA103D /* UINavigationItem+StyleStyle.swift in Sources */,
 				ED82C8032F90186900FA103D /* UINib+Init.swift in Sources */,
 				ED82C8042F90186900FA103D /* UITableView+Cells.swift in Sources */,
+				0F13484A0000000000000002 /* UITableViewCell+SeparatorInset.swift in Sources */,
 				ED82C8052F90186900FA103D /* UITableView+Updates.swift in Sources */,
 				ED82C8202F90186900FA103D /* MWMKeyboard.m in Sources */,
 				ED82C8212F90186900FA103D /* Common.swift in Sources */,
@@ -4997,6 +5004,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A13418010000000000000004 /* CarPlayManeuverMapperTests.swift in Sources */,
 				B26883EF0814407A8B1D73AF /* PlacePageUserDescriptionWebViewTests.swift in Sources */,
 				EDF838C12C00B9D6007E4E67 /* iCloudDirectoryMonitorTests.swift in Sources */,
 				EDF838C02C00B9D0007E4E67 /* DefaultLocalDirectoryMonitorTests.swift in Sources */,

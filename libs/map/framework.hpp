@@ -519,6 +519,7 @@ public:
   // search result.
   void ShowSearchResult(search::Result const & res, bool animation = true);
 
+  // Applies the search results viewport policy, see search::AdjustViewportToSearchResults().
   void UpdateViewport(search::Results const & results);
 
   void FillSearchResultsMarks(bool clear, search::Results const & results);
@@ -533,7 +534,7 @@ public:
   bool GetDistanceAndAzimut(m2::PointD const & point, double lat, double lon, double north,
                             platform::Distance & distance, double & azimut);
 
-  /// @name For Desktop only.
+  /// @name Screen pixel to geo point conversions.
   /// @{
   m2::PointD PtoG(m2::PointD const & p) const;
   m2::PointD P3dtoG(m2::PointD const & p) const;
@@ -544,7 +545,9 @@ public:
 
   m2::PointD GetVisiblePixelCenter() const;
 
-  m2::PointD const & GetViewportCenter() const;
+  /// @returns Geo point under the visible viewport center: the pixel where the Add-Place crosshair
+  /// is drawn and the anchor that SetViewportCenter() matches its argument to.
+  m2::PointD GetViewportCenter() const;
   void SetViewportCenter(m2::PointD const & pt, int zoomLevel = -1, bool isAnim = true,
                          bool trackVisibleViewport = false);
 

@@ -4,13 +4,13 @@ set(SRC
   address_tests.cpp
   api_mark_tests.cpp
   bookmarks_test.cpp
-  chart_generator_tests.cpp
   check_mwms.cpp
   coordinate_formats_tests.cpp
   countries_names_tests.cpp
   editor_notes_tests.cpp
   extrapolator_tests.cpp
   feature_getters_tests.cpp
+  framework_viewport_tests.cpp
   gps_track_collection_test.cpp
   gps_track_storage_test.cpp
   gps_track_test.cpp
@@ -20,6 +20,7 @@ set(SRC
   road_warning_tests.cpp
   share_tests.cpp
   search_api_tests.cpp
+  search_viewport_tests.cpp
   transliteration_test.cpp
   relation_track_tests.cpp
   routing_manager_tests.cpp

@@ -1,6 +1,7 @@
 struct UserDescriptionHTMLDocumentBuilder {
   func buildHTML(with htmlString: String) -> String {
     if isHTMLDocument(htmlString) {
+      // Full documents keep their author-defined appearance.
       return htmlString
     }
     // Convert fragment HTML to full document.
@@ -17,10 +18,15 @@ struct UserDescriptionHTMLDocumentBuilder {
           background: transparent;
         }
         body {
-          color: \(UIColor.blackPrimaryText.hexString);
+          color: \(UIColor.blackPrimaryText.resolvedColor(with: UITraitCollection(userInterfaceStyle: .light)).hexString);
           font-size: \(UIFont.regular14.dynamic.pointSize)px;
           font-family: -apple-system, sans-serif;
           overflow-wrap: break-word;
+        }
+        @media (prefers-color-scheme: dark) {
+          body {
+            color: \(UIColor.blackPrimaryText.resolvedColor(with: UITraitCollection(userInterfaceStyle: .dark)).hexString);
+          }
         }
         img,
         video {

@@ -115,7 +115,7 @@
 /* Search category sight seeings and touristic attractions; any changes should be duplicated in categories.txt @category_tourism! */
 "category_tourism" = "Sites touristiques";
 
-/* Search category for entertainment; any changes should be duplicated in categories.txt @category_entertainment! */
+/* Search category for entertainment; any changes should be duplicated in categories.txt @category_entertainment! Also a bookmarks list group header when sorting by type. */
 "category_entertainment" = "Divertissement";
 
 /* Search category for ATMs; any changes should be duplicated in categories.txt @category_atm! */
@@ -148,7 +148,7 @@
 /* Search category for recycling; any changes should be duplicated in categories.txt @category_recycling! */
 "category_recycling" = "Recyclage";
 
-/* Search category for water; any changes should be duplicated in categories.txt @category_water! also used to sort bookmarks by type */
+/* Search category for water; any changes should be duplicated in categories.txt @category_water! Also a bookmarks list group header when sorting by type. */
 "category_water" = "Eau";
 
 /* Search category for RV facilities; any changes should be duplicated in categories.txt @category_rv! */
@@ -570,7 +570,7 @@
 "login_to_make_edits_visible" = "Créez un compte OpenStreetMap ou connectez-vous pour publier vos modifications de cartes dans le monde entier.";
 
 /* Downloaded 10 **of** 20 <- it is that "of" */
-"downloader_of" = "%1$d de %2$d";
+"downloader_of" = "%1$d sur %2$d";
 "download_over_mobile_header" = "Téléchargement avec une connexion réseau cellulaire ?";
 "download_over_mobile_message" = "Cela pourrait être très cher avec certains abonnements ou si vous êtes en déplacement.";
 "error_enter_correct_house_number" = "Saisir un numéro de maison correct";
@@ -862,7 +862,7 @@
 /* For iOS message 'alert_reauth_message' should be splitted in two parts: message + link. Here's link part */
 "alert_reauth_link_text_ios" = "ici";
 "downloader_hide_screen" = "Masquer l’écran";
-"downloader_percent" = "%@ (%@ de %@)";
+"downloader_percent" = "%@ (%@ sur %@)";
 "downloader_process" = "Téléchargement de %@…";
 "downloader_applying" = "Application de %@…";
 "bookmarks_error_title_list_name_too_long" = "Ce nom est trop long";
@@ -1073,6 +1073,12 @@
 
 /* Text for the editing the Track's color button. */
 "change_color" = "Change de couleur";
+
+/* Text for the hiding track. */
+"hide_track" = "Cacher le tracé";
+
+/* Text for the showing track. */
+"show_track" = "Afficher le tracé";
 
 /* Main screen title "Map" displayed in the navigation back button's menu. */
 "map" = "Carte";

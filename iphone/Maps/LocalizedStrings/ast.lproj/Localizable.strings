@@ -115,7 +115,7 @@
 /* Search category sight seeings and touristic attractions; any changes should be duplicated in categories.txt @category_tourism! */
 "category_tourism" = "Sights";
 
-/* Search category for entertainment; any changes should be duplicated in categories.txt @category_entertainment! */
+/* Search category for entertainment; any changes should be duplicated in categories.txt @category_entertainment! Also a bookmarks list group header when sorting by type. */
 "category_entertainment" = "Arruelu";
 
 /* Search category for ATMs; any changes should be duplicated in categories.txt @category_atm! */
@@ -148,7 +148,7 @@
 /* Search category for recycling; any changes should be duplicated in categories.txt @category_recycling! */
 "category_recycling" = "Reciclaxe";
 
-/* Search category for water; any changes should be duplicated in categories.txt @category_water! also used to sort bookmarks by type */
+/* Search category for water; any changes should be duplicated in categories.txt @category_water! Also a bookmarks list group header when sorting by type. */
 "category_water" = "Water";
 
 /* Search category for RV facilities; any changes should be duplicated in categories.txt @category_rv! */
@@ -178,13 +178,13 @@
 "share_my_position" = "Toi equí en Organic Maps";
 
 /* Email subject when sharing a place. %1$@ is the place name or address. */
-"share_place_subject" = "%1$@ en Organic Maps";
+"share_place_subject" = "%1$@ n’Organic Maps";
 
 /* Email subject when sharing a place that has no name or address. */
-"share_place_subject_default" = "Un llugar en Organic Maps";
+"share_place_subject_default" = "Un llugar n’Organic Maps";
 
 /* Shared email link text; opens the shared place in Organic Maps or in a web browser. */
-"share_open_in_om_or_browser" = "Abrir en Organic Maps o nun restolador";
+"share_open_in_om_or_browser" = "Abrir n’Organic Maps o nun restolador";
 
 /* Shared email link text; leads to the Organic Maps download page. */
 "share_get_om" = "Consiguir Organic Maps";
@@ -577,7 +577,7 @@
 "editor_storey_number" = "Number of floors (maximum of %d)";
 
 /* Error message in Editor when a user tries to set the number of floors for a building higher than %d floors */
-"error_enter_correct_storey_number" = "The number of floors must non exceed %d";
+"error_enter_correct_storey_number" = "The number of floors must not exceed %d";
 "editor_zip_code" = "Códigu postal";
 "error_enter_correct_zip_code" = "Enter a valid ZIP code";
 
@@ -1073,6 +1073,12 @@
 
 /* Text for the editing the Track's color button. */
 "change_color" = "Change Color";
+
+/* Text for the hiding track. */
+"hide_track" = "Hide track";
+
+/* Text for the showing track. */
+"show_track" = "Show track";
 
 /* Main screen title "Map" displayed in the navigation back button's menu. */
 "map" = "Mapa";

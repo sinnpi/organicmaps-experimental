@@ -1160,9 +1160,10 @@ m2::PointD Framework::GetVisiblePixelCenter() const
   return m_visibleViewport.Center();
 }
 
-m2::PointD const & Framework::GetViewportCenter() const
+m2::PointD Framework::GetViewportCenter() const
 {
-  return m_currentModelView.GetOrg();
+  ASSERT(m_visibleViewport.IsValid(), ("Set by OnSize() from CreateDrapeEngine()"));
+  return P3dtoG(GetVisiblePixelCenter());
 }
 
 void Framework::SetViewportCenter(m2::PointD const & pt, int zoomLevel /* = -1 */, bool isAnim /* = true */,
@@ -1640,37 +1641,13 @@ void Framework::HideRouteTransitIfNeeded()
 
 void Framework::UpdateViewport(search::Results const & results)
 {
-  // Setup viewport according to results.
-  m2::AnyRectD viewport = m_currentModelView.GlobalRect();
-  m2::PointD const center = viewport.Center();
-
-  double minDistance = std::numeric_limits<double>::max();
-  search::Result const * res = nullptr;
-  for (auto const & r : results)
+  // Fit into the part of the screen that is not covered by UI (e.g. the search bottom sheet).
+  auto viewport = m_currentModelView.GetTouchRect(m_visibleViewport.Center(), m_visibleViewport.SizeX() / 2,
+                                                  m_visibleViewport.SizeY() / 2);
+  if (search::AdjustViewportToSearchResults(results, viewport))
   {
-    if (r.HasPoint())
-    {
-      double const dist = center.SquaredLength(r.GetFeatureCenter());
-      if (dist < minDistance)
-      {
-        minDistance = dist;
-        res = &r;
-      }
-    }
-  }
-
-  if (res)
-  {
-    m2::PointD const pt = res->GetFeatureCenter();
-    if (!viewport.IsPointInside(pt))
-    {
-      viewport.SetSizesToIncludePoint(pt);
-      double constexpr factor = 0.05;
-      viewport.Inflate(viewport.GetLocalRect().SizeX() * factor, viewport.GetLocalRect().SizeY() * factor);
-
-      StopLocationFollow();
-      ShowRect(viewport);
-    }
+    StopLocationFollow();
+    ShowRect(viewport, true /* animation */, true /* useVisibleViewport */);
   }
 }
 
@@ -3568,6 +3545,10 @@ bool Framework::CanEditMapForPosition(m2::PointD const & position) const
 bool Framework::CreateMapObject(m2::PointD const & mercator, uint32_t const featureType,
                                 osm::EditableMapObject & emo) const
 {
+  // GetRegionCountryId() below wraps internally, but Editor::CreatePoint() tests the MWM's bounding
+  // box as is, so an unwrapped point would silently fail there instead of here.
+  ASSERT(mercator::ValidX(mercator.x), (mercator));
+
   emo = {};
   auto const & dataSource = m_featuresFetcher.GetDataSource();
   MwmSet::MwmId const mwmId =

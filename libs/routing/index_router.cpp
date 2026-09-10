@@ -24,8 +24,6 @@
 #include "routing/transit_world_graph.hpp"
 #include "routing/vehicle_mask.hpp"
 
-#include "transit/transit_entities.hpp"
-
 #include "routing_common/bicycle_model.hpp"
 #include "routing_common/car_model.hpp"
 #include "routing_common/pedestrian_model.hpp"
@@ -74,6 +72,17 @@ uint32_t constexpr kVisitPeriod = 40;
 double constexpr kLeapsStageContribution = 0.15;
 double constexpr kCandidatesStageContribution = 0.55;
 double constexpr kAlmostZeroContribution = 1e-7;
+// A* heuristic speed bound for transit; deliberately ignores high-speed rail.
+double constexpr kTransitMaxSpeedKMpH = 60.0;
+
+// Distance-biased alternatives must not trade a small distance saving for an excessive ETA.
+// Transit alternatives are exempt because they intentionally trade time for less walking.
+double constexpr kMaxAltEtaRatio = 1.5;
+
+bool IsAlternativeEtaAcceptable(VehicleType vehicleType, double activeEtaSec, double alternativeEtaSec)
+{
+  return vehicleType == VehicleType::Transit || alternativeEtaSec <= kMaxAltEtaRatio * activeEtaSec;
+}
 
 // If user left the route within this range(meters), adjust the route. Else full rebuild.
 double constexpr kAdjustRangeM = 5000.0;
@@ -457,9 +466,11 @@ RouterResultCode IndexRouter::CalculateRoute(Checkpoints const & checkpoints, m2
       code = DoCalculateRoute(checkpoints, startDirection, delegate, route);
 
       // Compute an alternative alongside the Normal route. Only on a full (non-adjust) build and only
-      // within a reasonable distance budget — alt computation roughly doubles latency. Road vehicles
-      // get a Shortest-strategy alternative; transit gets a less-walking / fewer-transfers alternative
-      // (e.g. a direct bus instead of subway + walk).
+      // within a reasonable distance budget — the alternative search costs about 0.5-1x of the
+      // normal one (measured; the tight DistanceBiased heuristic keeps it cheap, see
+      // EdgeEstimator::CalcHeuristic). Non-transit profiles get a distance-biased alternative;
+      // transit gets a less-walking / fewer-transfers alternative (e.g. a direct bus instead of
+      // subway + walk).
       double const altMaxDistanceM = m_vehicleType == VehicleType::Car ? 300'000.0 : 100'000.0;
       if ((code == RouterResultCode::NoError || code == RouterResultCode::HasWarnings) && !delegate.IsCancelled() &&
           mercator::DistanceOnEarth(startPoint, finalPoint) <= altMaxDistanceM)
@@ -486,7 +497,10 @@ RouterResultCode IndexRouter::CalculateRoute(Checkpoints const & checkpoints, m2
         }
         else
         {
-          m_estimator->SetStrategy(EdgeEstimator::Strategy::Shortest);
+          // Guides edges are priced at max speed (see SetGuidesGraphParams call below), above the
+          // DistanceBiased cap, so the tighter heuristic is only valid without attached guides.
+          m_estimator->SetStrategy(EdgeEstimator::Strategy::DistanceBiased,
+                                   !m_guides.IsAttached() /* tightHeuristicAllowed */);
         }
         altCode = DoCalculateRoute(checkpoints, startDirection, delegate, altRoute);
       }
@@ -505,7 +519,8 @@ RouterResultCode IndexRouter::CalculateRoute(Checkpoints const & checkpoints, m2
     // Transit is distinguished by fake transit (subway/bus) segments, so compare by geometry;
     // road vehicles compare by real-road feature identity.
     std::optional<m2::PointD> diffMidpoint;
-    if ((altCode == RouterResultCode::NoError || altCode == RouterResultCode::HasWarnings) && altRoute.IsValid())
+    if ((altCode == RouterResultCode::NoError || altCode == RouterResultCode::HasWarnings) && altRoute.IsValid() &&
+        IsAlternativeEtaAcceptable(m_vehicleType, route.GetTotalTimeSec(), altRoute.GetTotalTimeSec()))
     {
       diffMidpoint = m_vehicleType == VehicleType::Transit
                        ? altRoute.FindMaxDiffMidpointByGeometry(route.GetRouteSegments())

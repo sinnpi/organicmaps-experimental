@@ -11,7 +11,6 @@
 #include "app/organicmaps/sdk/vulkan/android_vulkan_context_factory.hpp"
 
 #include "map/bookmark_helpers.hpp"
-#include "map/chart_generator.hpp"
 #include "map/everywhere_search_params.hpp"
 #include "map/framework.hpp"
 #include "map/place_page_info.hpp"
@@ -519,11 +518,6 @@ void Framework::Touch(int action, Finger const & f1, Finger const & f2, uint8_t 
 
   event.SetFirstMaskedPointer(maskedPointer);
   m_work.TouchEvent(event);
-}
-
-m2::PointD Framework::GetViewportCenter() const
-{
-  return m_work.GetViewportCenter();
 }
 
 void Framework::AddString(std::string const & name, std::string const & value)

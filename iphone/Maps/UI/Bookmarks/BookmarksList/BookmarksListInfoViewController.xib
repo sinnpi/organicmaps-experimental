@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.CocoaTouch.XIB" version="3.0" toolsVersion="25084" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" colorMatched="YES">
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.XIB" version="3.0" toolsVersion="25084" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES">
     <device id="retina4_7" orientation="portrait" appearance="light"/>
     <dependencies>
         <deployment identifier="iOS"/>
         <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="25061"/>
+        <capability name="Safe area layout guides" minToolsVersion="9.0"/>
         <capability name="System colors in document resources" minToolsVersion="11.0"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
@@ -45,7 +46,7 @@
                                             <rect key="frame" x="0.0" y="0.0" width="335" height="48"/>
                                             <subviews>
                                                 <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" horizontalCompressionResistancePriority="250" verticalCompressionResistancePriority="751" text="Paris" textAlignment="natural" lineBreakMode="tailTruncation" numberOfLines="0" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="TFR-Qj-pUF">
-                                                    <rect key="frame" x="0.0" y="16" width="283" height="32"/>
+                                                    <rect key="frame" x="0.0" y="16" width="295" height="32"/>
                                                     <fontDescription key="fontDescription" type="boldSystem" pointSize="24"/>
                                                     <nil key="textColor"/>
                                                     <nil key="highlightedColor"/>
@@ -53,23 +54,10 @@
                                                         <userDefinedRuntimeAttribute type="string" keyPath="styleName" value="bold24:blackPrimaryText"/>
                                                     </userDefinedRuntimeAttributes>
                                                 </label>
-                                                <button opaque="NO" contentMode="scaleToFill" horizontalHuggingPriority="251" horizontalCompressionResistancePriority="751" contentHorizontalAlignment="trailing" contentVerticalAlignment="center" buttonType="detailDisclosure" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="ixf-Ba-3Fe">
-                                                    <rect key="frame" x="291" y="16" width="44" height="32"/>
-                                                    <constraints>
-                                                        <constraint firstAttribute="width" constant="44" id="Ihd-Kn-rfK"/>
-                                                    </constraints>
-                                                    <connections>
-                                                        <action selector="onEditTap" destination="-1" eventType="touchUpInside" id="TGD-d2-WU2"/>
-                                                    </connections>
-                                                </button>
                                             </subviews>
                                             <constraints>
                                                 <constraint firstItem="TFR-Qj-pUF" firstAttribute="top" secondItem="Z9F-Yb-cDq" secondAttribute="top" constant="16" id="1Pq-uJ-IXO"/>
-                                                <constraint firstItem="ixf-Ba-3Fe" firstAttribute="leading" secondItem="TFR-Qj-pUF" secondAttribute="trailing" constant="8" id="9jE-YY-ZE7"/>
-                                                <constraint firstAttribute="bottom" secondItem="ixf-Ba-3Fe" secondAttribute="bottom" id="HN4-xV-DLy"/>
                                                 <constraint firstItem="TFR-Qj-pUF" firstAttribute="leading" secondItem="Z9F-Yb-cDq" secondAttribute="leading" id="Mqn-yA-iWF"/>
-                                                <constraint firstAttribute="trailing" secondItem="ixf-Ba-3Fe" secondAttribute="trailing" id="Z5s-ln-YsX"/>
-                                                <constraint firstItem="ixf-Ba-3Fe" firstAttribute="top" secondItem="TFR-Qj-pUF" secondAttribute="top" id="aPt-h4-3s1"/>
                                                 <constraint firstAttribute="bottom" secondItem="TFR-Qj-pUF" secondAttribute="bottom" id="j5w-Th-flQ"/>
                                             </constraints>
                                         </view>
@@ -113,13 +101,28 @@
                                         </view>
                                     </subviews>
                                 </stackView>
+                                <button opaque="NO" contentMode="scaleToFill" horizontalHuggingPriority="251" horizontalCompressionResistancePriority="751" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="ixf-Ba-3Fe">
+                                    <rect key="frame" x="323" y="16" width="52" height="32"/>
+                                    <constraints>
+                                        <constraint firstAttribute="width" constant="52" id="Ihd-Kn-rfK"/>
+                                    </constraints>
+                                    <state key="normal" image="ic_info"/>
+                                    <connections>
+                                        <action selector="onEditTap" destination="-1" eventType="touchUpInside" id="TGD-d2-WU2"/>
+                                    </connections>
+                                </button>
                             </subviews>
                             <constraints>
-                                <constraint firstAttribute="trailing" secondItem="226-gO-8GN" secondAttribute="trailing" constant="20" id="Bc0-zj-luu"/>
-                                <constraint firstItem="226-gO-8GN" firstAttribute="leading" secondItem="jGS-bD-wyb" secondAttribute="leading" constant="20" id="CBz-2b-FdW"/>
+                                <constraint firstItem="hDR-sA-fe1" firstAttribute="trailing" secondItem="226-gO-8GN" secondAttribute="trailing" constant="20" id="Bc0-zj-luu"/>
+                                <constraint firstItem="ixf-Ba-3Fe" firstAttribute="leading" secondItem="TFR-Qj-pUF" secondAttribute="trailing" constant="8" id="9jE-YY-ZE7"/>
+                                <constraint firstItem="ixf-Ba-3Fe" firstAttribute="top" secondItem="TFR-Qj-pUF" secondAttribute="top" id="aPt-h4-3s1"/>
+                                <constraint firstItem="ixf-Ba-3Fe" firstAttribute="bottom" secondItem="TFR-Qj-pUF" secondAttribute="bottom" id="Uc4-1t-Kb8"/>
+                                <constraint firstItem="hDR-sA-fe1" firstAttribute="trailing" secondItem="ixf-Ba-3Fe" secondAttribute="trailing" id="Z5s-ln-YsX"/>
+                                <constraint firstItem="226-gO-8GN" firstAttribute="leading" secondItem="hDR-sA-fe1" secondAttribute="leading" constant="20" id="CBz-2b-FdW"/>
                                 <constraint firstAttribute="bottom" secondItem="226-gO-8GN" secondAttribute="bottom" id="eCj-gO-9cQ"/>
                                 <constraint firstItem="226-gO-8GN" firstAttribute="top" secondItem="jGS-bD-wyb" secondAttribute="top" id="wIb-n9-mts"/>
                             </constraints>
+                            <viewLayoutGuide key="safeArea" id="hDR-sA-fe1"/>
                         </view>
                         <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="p5d-oU-wVm">
                             <rect key="frame" x="0.0" y="339" width="375" height="1"/>
@@ -149,6 +152,7 @@
         </view>
     </objects>
     <resources>
+        <image name="ic_info" width="24" height="24"/>
         <systemColor name="systemBackgroundColor">
             <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
         </systemColor>

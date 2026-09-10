@@ -34,7 +34,7 @@ The C++ core is accessed from platforms via bridging layers:
 - `using` instead of `typedef`
 - Compile-time constants: `kCamelCase` and `constexpr`
 - Comments should be brief, explaining only reasoning that is not obvious from the code itself
-- Auto-format: `clang-format -i file.cpp` (v22+), or `tools/unix/clang-format.sh` for the whole tree
+- Auto-format: `clang-format -i file.cpp` (v23), or `tools/unix/clang-format.sh` for the whole tree
 - Swift: format with `swiftformat iphone/` or `swiftformat <file>` (config in `iphone/.swiftformat`)
 - Kotlin: format with `tools/unix/ktlint_format.sh` (config in `android/.editorconfig`)
 - Style checks gate CI (clang-format, swiftformat, ktlint, and detekt static analysis) -- run them before pushing
@@ -105,7 +105,7 @@ std::string DebugPrint(MyType const & t);
 3. To run tests:
 ```bash
 # Mirrors the default CMake test preset while keeping the per-agent build dir.
-CTEST_EXCLUDE_REGEX="drape_tests|drape_frontend_tests|generator_integration_tests|routing_benchmarks|routing_integration_tests|routing_quality_tests|search_quality_tests|storage_integration_tests|shaders_tests|world_feed_integration_tests"
+CTEST_EXCLUDE_REGEX="drape_tests|drape_frontend_tests|generator_integration_tests|routing_benchmarks|routing_integration_tests|routing_quality_tests|search_quality_tests|storage_integration_tests|shaders_tests"
 ctest -j --test-dir build-$YOUR_NAME --stop-on-failure --output-on-failure -L "omim-test" -E "$CTEST_EXCLUDE_REGEX"
 # Rendering tests need offscreen GL and are run separately.
 QT_QPA_PLATFORM=offscreen ctest --test-dir build-$YOUR_NAME --stop-on-failure --output-on-failure -R "drape_tests|drape_frontend_tests|shaders_tests"

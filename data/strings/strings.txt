@@ -3901,7 +3901,7 @@ zh-Hans = 旅游景点
 zh-Hant = 旅遊景點
 
 [category_entertainment]
-comment = Search category for entertainment; any changes should be duplicated in categories.txt @category_entertainment!
+comment = Search category for entertainment; any changes should be duplicated in categories.txt @category_entertainment! Also a bookmarks list group header when sorting by type.
 tags = android-app,apple-maps
 en = Entertainment
 af = Vermaak
@@ -4508,7 +4508,7 @@ zh-Hans = 回收
 zh-Hant = 回收
 
 [category_water]
-comment = Search category for water; any changes should be duplicated in categories.txt @category_water! also used to sort bookmarks by type
+comment = Search category for water; any changes should be duplicated in categories.txt @category_water! Also a bookmarks list group header when sorting by type.
 tags = android-app,apple-maps
 en = Water
 af = Water
@@ -5420,7 +5420,7 @@ tags = android-app,apple-maps
 en = %1$@ on Organic Maps
 af = %1$@ op Organic Maps
 ar = %1$@ على Organic Maps
-ast = %1$@ en Organic Maps
+ast = %1$@ n’Organic Maps
 az = %1$@ Organic Maps-də
 be = %1$@ у Organic Maps
 bg = %1$@ в Organic Maps
@@ -5478,7 +5478,7 @@ tags = android-app,apple-maps
 en = A place on Organic Maps
 af = 'n Plek op Organic Maps
 ar = مكان على Organic Maps
-ast = Un llugar en Organic Maps
+ast = Un llugar n’Organic Maps
 az = Organic Maps-də məkan
 be = Месца ў Organic Maps
 bg = Място в Organic Maps
@@ -5537,7 +5537,7 @@ tags = android-sdk,apple-maps
 en = Open in Organic Maps or in a browser
 af = Maak oop in Organic Maps of in 'n blaaier
 ar = افتح في Organic Maps أو في المتصفح
-ast = Abrir en Organic Maps o nun restolador
+ast = Abrir n’Organic Maps o nun restolador
 az = Organic Maps-də və ya brauzerdə aç
 be = Адкрыць у Organic Maps або браўзеры
 bg = Отваряне в Organic Maps или в браузър
@@ -19341,7 +19341,7 @@ et = %1$d/%2$d
 eu = %1$d/%2$d
 fa = %1$d از %2$d
 fi = %1$d/%2$d
-fr = %1$d de %2$d
+fr = %1$d sur %2$d
 gl = %1$d de %2$d
 he = %1$d מתוך %2$d
 hi = %2$d में से %1$d
@@ -19602,7 +19602,7 @@ zh-Hant = 樓層數量（最多 %d 層）
 [error_enter_correct_storey_number]
 comment = Error message in Editor when a user tries to set the number of floors for a building higher than %d floors
 tags = android-app,apple-maps
-en = The number of floors must non exceed %d
+en = The number of floors must not exceed %d
 af = Die aantal verdiepings mag nie %d oorskry nie
 ar = يجب ألا يتجاوز عدد طوابق المبنى %d
 az = Mərtəbələrin sayı %d-dən çox olmamalıdır
@@ -32607,7 +32607,7 @@ et = %@ (%@ / %@)
 eu = %@ (%@/%@)
 fa = %@ (%@ از %@)
 fi = %@ (%@ / %@)
-fr = %@ (%@ de %@)
+fr = %@ (%@ sur %@)
 gl = %@ (%@ de %@)
 he = %@ (%@ מתוך %@)
 hr = %@ (%@ od %@)
@@ -41711,7 +41711,7 @@ zh-Hant = 更改顏色
 
 [hide_track]
 comment = Text for the hiding track.
-tags = android-app
+tags = android-app,apple-maps
 en = Hide track
 af = Versteek roete
 ar = إخفاء المسار
@@ -41758,7 +41758,7 @@ zh-Hant = 隱藏軌跡
 
 [show_track]
 comment = Text for the showing track.
-tags = android-app
+tags = android-app,apple-maps
 en = Show track
 af = Wys roete
 ar = عرض المسار
