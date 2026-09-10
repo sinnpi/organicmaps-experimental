@@ -1,3 +1,21 @@
+## About this fork
+
+An unofficial, experimental fork focused on long-distance cycling. Its main Android changes are:
+
+- **Track following:** follow imported tracks in either direction, preserving progress through loops.
+- **Resupply detours:** visit a stop, rejoin the track ahead, and continue to the original destination.
+- **Search along the route:** find places ahead and configure each navigation search-wheel slot as a category, free-text Search, or Hidden.
+- **Interactive elevation profiles:** inspect upcoming terrain and its position on the map during navigation.
+- **Low-power navigation:** sparse OLED mode, adjustable navigation controls, and refresh-rate settings.
+
+The experimental Android app installs alongside the official app. Features are still being tested; battery savings depend on the device and settings.
+
+**Download:** [Experimental APK releases](https://github.com/sinnpi/organicmaps-experimental/releases) (ARM64 Android). Test builds use a public signing key; see [build and release details](docs/FORK_RELEASES.md).
+
+## Upstream Organic Maps
+
+The description and store links below refer to the original app, not this fork.
+
 <div align="center">
   <img src="qt/res/logo.png" height="100"/>
 </div>
