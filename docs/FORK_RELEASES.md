@@ -22,6 +22,21 @@ uninstalling an app or changing its application ID or signing key.
 
 ## GitHub Actions
 
+The **Experimental APK** workflow builds only `GoogleExperimental` for ARM64 and
+publishes its APK and checksum as a GitHub prerelease. It uses GitHub's temporary
+workflow token; no personal access token or private signing key is required.
+These downloads use the public test key and are not production releases.
+
+After pushing the reviewed source branch, publish a version with:
+
+```sh
+git tag -a experimental-YYYY.MM.DD-N -m "Experimental release"
+git push fork refs/tags/experimental-YYYY.MM.DD-N
+```
+
+Use `git tag -s` instead if signing the release tag with your own configured key.
+Each release needs a new tag. Download APKs from this fork's **Releases** page.
+
 Forks inherit workflow files, but Actions may need enabling in the fork settings.
 The existing **Android Check** workflow supports manual runs, pushes to `master`,
 and eligible pull requests. It builds debug APKs and uploads them as temporary
@@ -31,7 +46,7 @@ The upstream **Android Beta** and **Android Release** workflows depend on
 upstream-specific secrets and distribution services. They are not a ready-made
 release pipeline for this fork. Do not configure them with upstream credentials.
 
-For public distribution, configure a dedicated fork workflow that:
+Before distributing production releases, replace the test-release setup with one that:
 
 - Builds the intended fork variant and application ID.
 - Uses a stable private signing key, not the public debug key.
