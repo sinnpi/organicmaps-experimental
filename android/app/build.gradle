@@ -183,6 +183,18 @@ android {
       signingConfig = signingConfigs.debug
       matchingFallbacks = ['release']
     }
+
+    // Release-like build for testers, shown as "Experimental Organic Maps" and installed as
+    // app.organicmaps.experimental so it coexists with the store app instead of replacing it.
+    // Uses the repository's public debug key, so local and CI test builds can update each
+    // other without secure.properties. Public releases need a private, stable signing key.
+    experimental {
+      initWith release
+      applicationIdSuffix '.experimental'
+      versionNameSuffix '-experimental'
+      signingConfig = signingConfigs.debug
+      matchingFallbacks = ['release']
+    }
   }
 
   // Keep uncompressed only what truly benefits. .mwm, packed_polygons.bin (memory-mapped and seeked)
@@ -299,10 +311,10 @@ def allowedPermissions = [
     // comes from androidx.core:core:1.17.0
     // Regex to allow it for the following app packages:
     // app.organicmaps
-    // app.organicmaps.(debug|beta|profileable)
+    // app.organicmaps.(debug|beta|profileable|experimental)
     // app.organicmaps.web
-    // app.organicmaps.web.(debug|beta|profileable)
-    ~/name='app\.organicmaps(\.web)?(\.debug|\.beta|\.profileable)?\.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'/
+    // app.organicmaps.web.(debug|beta|profileable|experimental)
+    ~/name='app\.organicmaps(\.web)?(\.debug|\.beta|\.profileable|\.experimental)?\.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'/
 ]
 registerCheckApkPermissionsTasks(project, allowedPermissions)
 
