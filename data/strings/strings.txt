@@ -45161,3 +45161,78 @@ en = Follow track to this point
 comment = Error shown when an imported track cannot be prepared for navigation.
 tags = android-app,apple-maps
 en = This track cannot be followed from your current position.
+
+[enable_nav_elevation_profile]
+comment = Settings toggle that enables the experimental elevation profile shown while navigating.
+tags = android-app,apple-maps
+en = Show elevation profile while navigating (experimental)
+
+[enable_nav_elevation_profile_summary]
+comment = Description of the experimental setting that shows the elevation profile during navigation.
+tags = android-app,apple-maps
+en = Show the terrain ahead at the bottom of the screen during navigation.
+
+[prefs_group_experimental]
+comment = Settings section that groups experimental features under development.
+tags = android-app
+en = Experimental
+
+[enable_oled_power_save]
+comment = Settings toggle for a minimal true-black navigation display intended to save power on OLED screens.
+tags = android-app
+en = Ultra-low-power OLED navigation (experimental)
+
+[enable_oled_power_save_summary]
+comment = Description of the experimental OLED navigation setting.
+tags = android-app
+en = During navigation, show the route, faint nearby paths, and essential guidance on a true-black screen. Intended for OLED displays.
+
+[pref_map_buttons_scale_title]
+comment = Settings slider that changes how big the buttons on the map are.
+tags = android-app
+en = Map buttons size
+
+[pref_map_buttons_scale_summary]
+comment = Description of the setting that changes the size of the map buttons, shown in percent.
+tags = android-app
+en = Size of the buttons on the map, in percent of their default size.
+
+[pref_nav_search_options_title]
+comment = Experimental settings menu for configuring navigation search wheel buttons.
+tags = android-app
+en = Navigation search buttons
+
+[pref_nav_search_options_summary]
+comment = Description of the navigation search button settings.
+tags = android-app
+en = Choose a category or free-text search for each navigation search button.
+
+[pref_nav_search_options_too_many]
+comment = Shown when too many navigation search categories are selected. %d is the maximum.
+tags = android-app
+en = Pick at most %d categories.
+
+[pref_nav_search_options_empty]
+comment = Shown when no navigation search categories are selected.
+tags = android-app
+en = Keep at least one button visible.
+
+[nav_search_hidden]
+comment = Option to hide a navigation search wheel slot.
+tags = android-app
+en = Hidden
+
+[nav_search_slot]
+comment = A numbered navigation search wheel slot followed by its current action.
+tags = android-app
+en = Button %1$d: %2$s
+
+[track_detour]
+comment = Place page action to visit a stop and then rejoin the followed track.
+tags = android-app
+en = Detour via here
+
+[track_detour_unavailable]
+comment = Shown when a detour cannot be added without losing the followed track.
+tags = android-app
+en = Cannot add this stop. Resume track navigation and try again.
