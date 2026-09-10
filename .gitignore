@@ -48,6 +48,9 @@ iphone/**/*.perspectivev3
 # data
 data/[0-9][0-9][0-9][0-9][0-9][0-9]
 data/gps_track.dat
+# Temporary unit-test output and local device power measurements.
+/data/*.test
+power-runs/
 # custom raster background tiles disk cache
 data/bg_tiles/
 # JetBrains IDEs
