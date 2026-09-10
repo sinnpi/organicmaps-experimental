@@ -42,7 +42,9 @@ public:
   enum class Strategy
   {
     Normal,
-    DistanceBiased
+    DistanceBiased,
+    // Track matching must not shortcut a supplied track to favour faster roads.
+    Shortest
   };
 
   EdgeEstimator(double maxWeightSpeedKMpH, double distanceBiasCapSpeedKMpH, SpeedKMpH const & offroadSpeedKMpH,
@@ -106,12 +108,17 @@ public:
                                                std::shared_ptr<NumMwmIds> numMwmIds);
 
 protected:
-  /// Applies Strategy::DistanceBiased to a Normal |weight|: roads not slower than the cap tie by
-  /// pure distance, slower ones keep their full cost. No-op for Purpose::ETA and Strategy::Normal.
+  /// DistanceBiased retains slow-road penalties; Shortest ranks all roads purely by distance.
+  /// Neither strategy changes ETA.
   double ApplyStrategy(Purpose purpose, double weight, double distanceM) const
   {
-    if (purpose == Purpose::Weight && m_strategy == Strategy::DistanceBiased)
-      return std::max(weight, distanceM * m_distanceBiasSecPerM);
+    if (purpose == Purpose::Weight)
+    {
+      if (m_strategy == Strategy::Shortest)
+        return distanceM / m_maxWeightSpeedMpS;
+      if (m_strategy == Strategy::DistanceBiased)
+        return std::max(weight, distanceM * m_distanceBiasSecPerM);
+    }
     return weight;
   }
 

@@ -161,7 +161,16 @@ UNIT_TEST(DistanceBiasedStrategy_CapsFastRoadsKeepsSlowRoads)
     TEST_ALMOST_EQUAL_ABS(estimator->CalcHeuristic(fromLL, toLL, true /* tightAllowed */), looseHeuristic, kAccuracyEps,
                           (c.m_type));
 
+    // Track matching keeps pure distance pricing without changing the alternative-route strategy.
+    estimator->SetStrategy(EdgeEstimator::Strategy::Shortest);
+    TEST_ALMOST_EQUAL_ABS(calc(roadFast1, EdgeEstimator::Purpose::Weight), looseHeuristic, kAccuracyEps, (c.m_type));
+    TEST_ALMOST_EQUAL_ABS(calc(roadSlow, EdgeEstimator::Purpose::Weight), looseHeuristic, kAccuracyEps, (c.m_type));
+    TEST_ALMOST_EQUAL_ABS(calc(roadFast1, EdgeEstimator::Purpose::ETA), etaFast, kAccuracyEps, (c.m_type));
+    TEST_ALMOST_EQUAL_ABS(estimator->CalcHeuristic(fromLL, toLL, true /* tightAllowed */), looseHeuristic, kAccuracyEps,
+                          (c.m_type));
+
     estimator->SetStrategy(EdgeEstimator::Strategy::Normal);
+    TEST_ALMOST_EQUAL_ABS(calc(roadFast1, EdgeEstimator::Purpose::Weight), normalFast1, kAccuracyEps, (c.m_type));
     TEST_ALMOST_EQUAL_ABS(estimator->CalcHeuristic(fromLL, toLL, true /* tightAllowed */), looseHeuristic, kAccuracyEps,
                           (c.m_type));
   }
