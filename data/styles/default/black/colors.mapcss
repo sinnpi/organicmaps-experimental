@@ -1,0 +1,97 @@
+/* Keep here changes of the base map style file only. */
+@import("../dark/colors.mapcss");
+
+/* ~~~~ CONTENT OF COLORS-BLACK ~~~~~
+
+An OLED panel draws no power for a black pixel, so this variant takes the dark palette and turns
+every *area fill* fully off, keeping only the line work and labels lit: roads, the route, contour
+lines, water outlines and text. It is an aggressive bound on what an OLED restyle can save rather
+than a general-purpose theme -- water, forest and landuse become indistinguishable from bare land.
+
+Only colours may differ between the variants of a style family: tools/kothic/src/drules.py rejects
+variants whose rule structure diverges. That suits the goal, since turning a fill black is a colour
+change, not a rule change.
+
+1.BASEMAP
+2.BOUNDARY
+3.NATURAL
+4.LANDUSE
+5.ROADS (kept lit -- these are what you navigate by)
+6.LABELS (kept lit)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
+
+/* 1.BASEMAP */
+
+@background: #000000;
+
+/* 3.NATURAL */
+/* 3.1 Main natural */
+
+@glacier: #000000;
+@water: #000000;
+@water_bad: #000000;
+@wetland: #000000;
+@beach: #000000;
+@barerock: #000000;
+@scree: #000000;
+@desert: #000000;
+
+/* 3.2 Vegetation */
+
+@forest: #000000;
+@green0: #000000;
+@green1: #000000;
+@green1b: #000000;
+@green2: #000000;
+@green3: #000000;
+@green4: #000000;
+@green5: #000000;
+@green6: #000000;
+@flowers: #000000;
+
+/* 4.LANDUSE */
+/* 4.1 Main landuse */
+
+@pedestrian_area: #000000;
+@pedestrian_area_light: #000000;
+@platform: #000000;
+@leisure: #000000;
+@university: #000000;
+@hospital: #000000;
+@industrial: #000000;
+@sport0: #000000;
+@sport1: #000000;
+@sport2: #000000;
+@parking: #000000;
+@military: #000000;
+@prison: #000000;
+@farmland: #000000;
+@farmyard: #000000;
+
+/* 4.2 Aerodrome */
+
+@aerodrome0: #000000;
+@aerodrome1: #000000;
+@aerodrome2: #000000;
+@aerodrome3: #000000;
+@aerodrome4: #000000;
+@aerodrome5: #000000;
+
+/* 4.3 Barriers */
+
+@hedge: #000000;
+
+/* 4.4 Buildings */
+
+@building0: #000000;
+@building1: #000000;
+
+/* 5.2 Bridges */
+
+@bridge_background: #000000;
+
+/* Deliberately left alone: road, railway, piste and contour line colours, building outlines, label
+   text and label halos. They are thin or small, so they contribute little lit area, and blacking
+   them out would remove information rather than save power. The dark theme's halos are already
+   #111100 / #060600, which is within rounding distance of off. */

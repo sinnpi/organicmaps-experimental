@@ -1,0 +1,5 @@
+/* Keep here changes of the base map style file only. */
+@import("../../default/black/colors.mapcss");
+
+/* Outdoors keeps its own railway shade; see ../dark/colors.mapcss. */
+@railway_dark: #434343;
