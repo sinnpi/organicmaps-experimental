@@ -24,6 +24,7 @@ std::string_view kMeasurementUnits = "Units";
 std::string_view kMapLanguageCode = "MapLanguageCode";
 std::string_view kDeveloperMode = "DeveloperMode";
 std::string_view kTrackFollowEnabled = "TrackFollowEnabled";
+std::string_view kNavElevationProfileEnabled = "NavElevationProfileEnabled";
 std::string_view kDonateUrl = "DonateUrl";
 std::string_view kNY = "NY";
 

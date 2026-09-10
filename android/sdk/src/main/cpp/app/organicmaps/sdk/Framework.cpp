@@ -423,6 +423,11 @@ MapStyle Framework::GetMapStyle() const
   return m_work.GetMapStyle();
 }
 
+void Framework::SetLowPowerNavigationMode(bool enabled)
+{
+  m_work.SetLowPowerNavigationMode(enabled);
+}
+
 void Framework::Save3dMode(bool allow3d, bool allow3dBuildings)
 {
   m_work.Save3dMode(allow3d, allow3dBuildings);
@@ -1265,6 +1270,21 @@ JNIEXPORT jboolean Java_app_organicmaps_sdk_Framework_nativePrepareTrackFollowTo
   return result == RoutingManager::PrepareTrackFollowResult::Success;
 }
 
+JNIEXPORT jboolean Java_app_organicmaps_sdk_Framework_nativeCanAddTrackDetour(JNIEnv *, jclass)
+{
+  return frm()->GetRoutingManager().CanAddTrackDetour();
+}
+
+JNIEXPORT jboolean Java_app_organicmaps_sdk_Framework_nativeAddTrackDetour(JNIEnv * env, jclass, jstring title,
+                                                                           jstring subtitle, jdouble lat, jdouble lon)
+{
+  RouteMarkData stop;
+  stop.m_title = jni::ToNativeString(env, title);
+  stop.m_subTitle = jni::ToNativeString(env, subtitle);
+  stop.m_position = mercator::FromLatLon(lat, lon);
+  return frm()->GetRoutingManager().AddTrackDetour(std::move(stop));
+}
+
 JNIEXPORT jboolean Java_app_organicmaps_sdk_Framework_nativeIsTrackFollowMode(JNIEnv *, jclass)
 {
   return frm()->GetRoutingManager().IsTrackFollowMode();
@@ -1408,6 +1428,17 @@ JNIEXPORT void Java_app_organicmaps_sdk_Framework_nativeRouteRemoveElevationActi
     frm()->GetDrapeEngine()->DeselectObject(false);
 }
 
+JNIEXPORT jdouble Java_app_organicmaps_sdk_Framework_nativeGetRouteDistanceFromBeginMeters(JNIEnv *, jclass)
+{
+  return frm()->GetRoutingManager().GetRouteDistanceFromBeginMeters().value_or(-1.0);
+}
+
+JNIEXPORT void Java_app_organicmaps_sdk_Framework_nativeShowRouteStretch(JNIEnv *, jclass, jdouble fromMeters,
+                                                                         jdouble toMeters, jboolean animated)
+{
+  frm()->ShowRouteStretch(fromMeters, toMeters, animated);
+}
+
 JNIEXPORT void Java_app_organicmaps_sdk_Framework_nativeShowCountry(JNIEnv * env, jclass, jstring countryId,
                                                                     jboolean zoomToDownloadButton)
 {
@@ -1546,6 +1577,11 @@ JNIEXPORT jlong Java_app_organicmaps_sdk_Framework_nativeGetSunsetTime(JNIEnv * 
                                                                        jdouble lat, jdouble lon)
 {
   return static_cast<jlong>(GetSunsetTime(static_cast<time_t>(utcTimeSeconds), lat, lon));
+}
+
+JNIEXPORT void Java_app_organicmaps_sdk_Framework_nativeSetLowPowerNavigationMode(JNIEnv *, jclass, jboolean enabled)
+{
+  g_framework->SetLowPowerNavigationMode(enabled);
 }
 
 JNIEXPORT void Java_app_organicmaps_sdk_Framework_nativeSet3dMode(JNIEnv * env, jclass, jboolean allow,

@@ -69,6 +69,8 @@
 #include "std/target_os.hpp"
 
 #include <algorithm>
+#include <map>
+#include <set>
 
 using namespace location;
 using namespace routing;
@@ -129,6 +131,19 @@ auto const kCrowdfundingEndTime = base::YYMMDDToSecondsSinceEpoch(260120);
 
 auto constexpr kLargeFontsScaleFactor = 1.6;
 size_t constexpr kMaxTrafficCacheSizeBytes = 64 /* Mb */ * 1024 * 1024;
+
+// How much of the route ahead a search covers while it is being followed, and how far off the route
+// a result may lie and still count as being on the way.
+double constexpr kSearchAlongRouteAheadMeters = 50000.0;
+double constexpr kSearchAlongRouteCorridorMeters = 500.0;
+
+// Where the way ahead has nothing in the corridor for a whole stretch of this length, results
+// further off it are taken instead, the closest ones first, but no further than the wide corridor
+// and no more than a couple of them: on an empty road a filling station a few kilometres away is
+// worth knowing about, on a busy one it only gets in the way.
+double constexpr kSearchAlongRouteStretchMeters = 10000.0;
+double constexpr kSearchAlongRouteWideCorridorMeters = 5000.0;
+size_t constexpr kMaxSearchResultsPerEmptyStretch = 2;
 
 // TODO!
 // To adjust GpsTrackFilter was added secret command "?gpstrackaccuracy:xxx;"
@@ -1173,6 +1188,28 @@ void Framework::SetViewportCenter(m2::PointD const & pt, int zoomLevel /* = -1 *
     m_drapeEngine->SetModelViewCenter(pt, zoomLevel, isAnim, trackVisibleViewport);
 }
 
+m2::RectD Framework::GetViewportSearchRect(m2::RectD const & viewport) const
+{
+  if (!m_routingManager.IsRoutingFollowing())
+    return viewport;
+
+  // Following a route, the screen shows the next few hundred metres, while a search made from the
+  // navigation search wheel asks what is on the way: search the route ahead as well. The results
+  // are narrowed back down to the ones near the route in FillSearchResultsMarks().
+  auto ahead = m_routingManager.GetRouteAheadRect(kSearchAlongRouteAheadMeters);
+  if (!ahead)
+    return viewport;
+
+  // A straight road has a rect barely wider than itself, which would leave nothing to fall back on
+  // where the way ahead turns out to be empty.
+  double const margin = mercator::MetersToMercator(kSearchAlongRouteWideCorridorMeters);
+  ahead->Inflate(margin, margin);
+
+  auto rect = viewport;
+  rect.Add(*ahead);
+  return rect;
+}
+
 m2::RectD Framework::GetCurrentViewport() const
 {
   return m_currentModelView.ClipRect();
@@ -1205,6 +1242,20 @@ void Framework::ShowRect(m2::AnyRectD const & rect, bool animation, bool useVisi
 {
   if (m_drapeEngine)
     m_drapeEngine->SetModelViewAnyRect(rect, animation, useVisibleViewport);
+}
+
+void Framework::ShowRouteStretch(double fromMeters, double toMeters, bool animated)
+{
+  auto const rect = m_routingManager.GetRouteRectBetween(fromMeters, toMeters, m_currentModelView.GetAngleD());
+  if (!rect)
+    return;
+
+  // Only the first framing of a gesture is animated, the long way out of the navigation camera.
+  // The caller then re-frames the map every few dozen milliseconds while the user drags along the
+  // elevation profile, and animating those would restart the animation before it got anywhere,
+  // leaving the camera parked in the phase it opens with. Fitted into the visible viewport, since
+  // navigation covers much of the screen.
+  ShowRect(*rect, animated, true /* useVisibleViewport */);
 }
 
 void Framework::SetViewportListener(TViewportChangedFn const & fn)
@@ -1656,6 +1707,64 @@ void Framework::FillSearchResultsMarks(bool clear, search::Results const & resul
   FillSearchResultsMarks(results.begin(), results.end(), clear);
 }
 
+std::vector<search::Result const *> Framework::SelectResultsAlongRoute(SearchResultsIterT beg,
+                                                                       SearchResultsIterT end) const
+{
+  struct AsideResult
+  {
+    size_t m_stretch;
+    double m_fromRouteMeters;
+    search::Result const * m_result;
+  };
+
+  std::vector<search::Result const *> onTheWay;
+  std::vector<AsideResult> aside;
+  std::set<size_t> coveredStretches;
+
+  for (auto it = beg; it != end; ++it)
+  {
+    if (!it->HasPoint())
+      continue;
+
+    auto const position = m_routingManager.GetRoutePosition(it->GetFeatureCenter());
+    if (!position)
+      continue;
+
+    auto const stretch = static_cast<size_t>(position->m_alongMeters / kSearchAlongRouteStretchMeters);
+    if (position->m_fromRouteMeters <= kSearchAlongRouteCorridorMeters)
+    {
+      onTheWay.push_back(&*it);
+      coveredStretches.insert(stretch);
+    }
+    else if (position->m_fromRouteMeters <= kSearchAlongRouteWideCorridorMeters)
+    {
+      aside.push_back({stretch, position->m_fromRouteMeters, &*it});
+    }
+  }
+
+  // Closest to the way first, so that an empty stretch gets the least of a detour.
+  std::sort(aside.begin(), aside.end(),
+            [](AsideResult const & l, AsideResult const & r) { return l.m_fromRouteMeters < r.m_fromRouteMeters; });
+
+  // Results arrive in batches, each of which is filtered on its own, so a stretch may end up with a
+  // few more than the limit over a whole search. Not worth carrying state between the batches for.
+  std::map<size_t, size_t> takenPerStretch;
+  for (auto const & result : aside)
+  {
+    if (coveredStretches.count(result.m_stretch) != 0)
+      continue;
+
+    auto & taken = takenPerStretch[result.m_stretch];
+    if (taken == kMaxSearchResultsPerEmptyStretch)
+      continue;
+
+    ++taken;
+    onTheWay.push_back(result.m_result);
+  }
+
+  return onTheWay;
+}
+
 void Framework::FillSearchResultsMarks(SearchResultsIterT beg, SearchResultsIterT end, bool clear)
 {
   auto editSession = GetBookmarkManager().GetEditSession();
@@ -1663,12 +1772,8 @@ void Framework::FillSearchResultsMarks(SearchResultsIterT beg, SearchResultsIter
     editSession.ClearGroup(UserMark::Type::SEARCH);
   editSession.SetIsVisible(UserMark::Type::SEARCH, true);
 
-  for (auto it = beg; it != end; ++it)
+  auto const addMark = [this, &editSession](search::Result const & r)
   {
-    auto const & r = *it;
-    if (!r.HasPoint())
-      continue;
-
     auto * mark = editSession.CreateUserMark<SearchMarkPoint>(r.GetFeatureCenter());
     mark->SetMatchedName(r.GetString());
 
@@ -1679,7 +1784,21 @@ void Framework::FillSearchResultsMarks(SearchResultsIterT beg, SearchResultsIter
       mark->SetFromType(r.GetFeatureType());
       mark->SetVisited(m_searchMarks.IsVisited(fID));
     }
+  };
+
+  // The search covers the whole way ahead while a route is being followed (GetViewportSearchRect),
+  // which is a rect the route only crosses: show what is on the way, not what happens to share that
+  // rect with it.
+  if (m_routingManager.IsRoutingFollowing())
+  {
+    for (auto const * r : SelectResultsAlongRoute(beg, end))
+      addMark(*r);
+    return;
   }
+
+  for (auto it = beg; it != end; ++it)
+    if (it->HasPoint())
+      addMark(*it);
 }
 
 bool Framework::GetDistanceAndAzimut(m2::PointD const & point, double lat, double lon, double north,
@@ -1837,6 +1956,8 @@ void Framework::CreateDrapeEngine(ref_ptr<dp::GraphicsContextFactory> contextFac
       std::move(params.m_renderInjectionHandler));
 
   m_drapeEngine = make_unique_dp<df::DrapeEngine>(std::move(p));
+  if (m_lowPowerNavigationMode)
+    m_drapeEngine->SetLowPowerNavigationMode(true);
   m_drapeEngine->SetModelViewListener([this](ScreenBase const & screen)
   { GetPlatform().RunTask(Platform::Thread::Gui, [this, screen]() { OnViewportChanged(screen); }); });
   m_drapeEngine->SetTapEventInfoListener([this](df::TapInfo const & tapInfo)
@@ -2087,6 +2208,16 @@ void Framework::SetMapStyle(MapStyle mapStyle)
 MapStyle Framework::GetMapStyle() const
 {
   return GetStyleReader().GetCurrentStyle();
+}
+
+void Framework::SetLowPowerNavigationMode(bool enabled)
+{
+  if (m_lowPowerNavigationMode == enabled)
+    return;
+
+  m_lowPowerNavigationMode = enabled;
+  if (m_drapeEngine != nullptr)
+    m_drapeEngine->SetLowPowerNavigationMode(enabled);
 }
 
 void Framework::SetupMeasurementSystem()
@@ -3239,6 +3370,32 @@ bool Framework::ParseDrapeDebugCommand(std::string const & query)
     m_isolinesManager.SetEnabled(false /* enable */);
     return true;
   }
+  // Frame rate cap while following a route. Used to sweep the frame rate when attributing power
+  // draw to rendering; see docs/POWER_MEASUREMENT.md.
+  std::string_view constexpr kNavFps = "?nav-fps=";
+  if (query.starts_with(kNavFps))
+  {
+    uint32_t fps;
+    if (!strings::to_uint(std::string_view(query).substr(kNavFps.size()), fps))
+      return false;
+
+    m_drapeEngine->SetFollowingModeFrameRate(fps);
+    return true;
+  }
+
+  // Skips the scene redraw while following a route when nothing visible moved since the last drawn
+  // frame; 0 restores a redraw on every active frame. See docs/POWER_MEASUREMENT.md.
+  std::string_view constexpr kNavDeadband = "?nav-deadband=";
+  if (query.starts_with(kNavDeadband))
+  {
+    double thresholdPx;
+    if (!strings::to_double(std::string_view(query).substr(kNavDeadband.size()), thresholdPx))
+      return false;
+
+    m_drapeEngine->SetNavigationDeadband(thresholdPx);
+    return true;
+  }
+
   if (query == "?debug-info")
   {
     m_drapeEngine->ShowDebugInfo(true /* shown */);

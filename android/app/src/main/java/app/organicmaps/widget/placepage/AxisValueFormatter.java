@@ -11,15 +11,24 @@ public class AxisValueFormatter extends DefaultValueFormatter
   @NonNull
   private final BarLineChartBase mChart;
 
+  private float mOrigin;
+
   public AxisValueFormatter(@NonNull BarLineChartBase chart)
   {
     super(DEF_DIGITS);
     mChart = chart;
   }
 
+  /// Shifts the labels so that they read as distances from |origin| rather than from the start of
+  /// the chart. Used by the navigation profile to label the terrain ahead of the user.
+  public void setOrigin(float origin)
+  {
+    mOrigin = origin;
+  }
+
   @Override
   public String getFormattedValue(float value)
   {
-    return StringUtils.nativeFormatDistance(value).toString(mChart.getContext());
+    return StringUtils.nativeFormatDistance(Math.max(0f, value - mOrigin)).toString(mChart.getContext());
   }
 }

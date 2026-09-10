@@ -85,13 +85,10 @@ public:
                                   bool adjustToPrevRoute, RouterDelegate const & delegate,
                                   RoutesResult & result) override;
 
-  // Builds a single, continuous route from |start| to |finish| biased toward staying close to
-  // |centerline| (e.g. an imported GPX/KML track), instead of purely minimizing time/distance. Used by
-  // track-following navigation. Unlike CalculateRoute, this never introduces via-points: the bias is
-  // applied to the search graph itself (see TrackCorridorWorldGraph), so the result is exactly as if a
-  // normal two-point route had been requested on a corridor-shaped road network.
-  RouterResultCode CalculateTrackFollowingRoute(std::vector<m2::PointD> const & centerline, m2::PointD const & start,
-                                                m2::PointD const & finish, RouterDelegate const & delegate,
+  // Builds a route biased toward |centerline| on the road graph (see TrackCorridorWorldGraph).
+  // Honors unpassed checkpoints, including the internal points that preserve a loop's direction.
+  RouterResultCode CalculateTrackFollowingRoute(std::vector<m2::PointD> const & centerline,
+                                                Checkpoints const & checkpoints, RouterDelegate const & delegate,
                                                 Route & route);
 
   bool FindClosestProjectionToRoad(m2::PointD const & point, m2::PointD const & direction, double radius,

@@ -59,6 +59,9 @@ public:
 
     virtual std::optional<m2::PointD> GetCurrentPosition() const { return {}; }
 
+    /// The rect a search in the viewport should cover, given the current screen |viewport|.
+    virtual m2::RectD GetViewportSearchRect(m2::RectD const & viewport) const { return viewport; }
+
     virtual bool ParseSearchQueryCommand(search::SearchParams const & /* params */) { return false; }
 
     virtual m2::PointD GetMinDistanceBetweenResults() const { return {0, 0}; }
@@ -143,6 +146,7 @@ private:
   void Search(SearchIntent & intent);
 
   void SetViewportIfPossible(search::SearchParams & params);
+  void SetViewportSearchRectIfPossible(search::SearchParams & params);
 
   bool QueryMayBeSkipped(search::SearchParams const & prevParams, search::SearchParams const & currParams) const;
 

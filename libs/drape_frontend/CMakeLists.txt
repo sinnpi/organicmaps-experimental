@@ -169,6 +169,8 @@ set(SRC
   scenario_manager.hpp
   screen_animations.cpp
   screen_animations.hpp
+  screen_deadband.cpp
+  screen_deadband.hpp
   screen_operations.cpp
   screen_operations.hpp
   screen_quad_renderer.cpp

@@ -44,6 +44,14 @@ The source code is at [`SearchPanel::Try3dModeCmd`](../qt/search_panel.cpp).
 - `?debug-rect`: Shows boxes around icons and labels. When the icon/label is shown, the box is green. When the icon/label cannot be shown, the box is red with a blue arrow indicating which icon/label prevents rendering. When the icon/label is not ready for display, the box is yellow (check the `Update` method of [`dp::OverlayHandle`](../drape/overlay_handle.hpp) and derived classes for more information).
 - `?no-debug-rect`: Disables the debug boxes.
 
+### Frame rate
+
+These exist to make rendering cost measurable without a rebuild -- see [POWER_MEASUREMENT.md](POWER_MEASUREMENT.md). All of them reset on restart. Combine with `?debug-info` to see the effect on the FPS counter.
+
+- `?nav-fps=<n>`: Sets the frame rate the renderer is capped to while following a route, where the camera moves smoothly and predictably. The default is 30; values are clamped to 1..120.
+- `?nav-deadband=<px>`: While following a route, skips the scene redraw when no viewport corner has moved more than `<px>` pixels since the last drawn frame, re-compositing the previous frame instead. `0` (the default) redraws on every active frame. Note this also re-enables post-processing during navigation, which costs a fullscreen composite per frame -- whether the trade pays off is the thing being measured. Forced redraws (overlay re-placement, style and mark updates) are never skipped.
+- `?refresh-rate=<hz>`: Android only. Asks the window for a display refresh rate; `?refresh-rate` alone restores the system default. The swapchain presents FIFO, so without pinning this a frame-rate sweep measures the renderer confounded by the panel and compositor.
+
 ### Drape rendering engine
 
 All the following commands require an app restart:
@@ -61,6 +69,9 @@ All the following commands require an app restart:
 
 - `?debug-cam`: Force-enables speed cameras in all countries.
 - `?no-debug-cam`: Reverts speed camera setting to default.
+- `?simulate`: Android only. Replays the active route from a simulated location provider instead of the GNSS hardware, moving at a constant 18 km/h. Navigation must already be running. Because every run then covers identical ground, this is what makes repeated power or performance measurements comparable -- see [POWER_MEASUREMENT.md](POWER_MEASUREMENT.md).
+- `?simulate=<km/h>`: Same, at the given speed, e.g. `?simulate=50` for driving.
+- `?no-simulate`: Stops the simulation and restores the real location provider.
 
 ## Downloader
 
@@ -71,6 +82,8 @@ All the following commands require an app restart:
 ## GPS
 
 - `?gpstrackaccuracy:XXX`: Changes the accuracy of the GPS while recording tracks. Replace `XXX` by the desired horizontal accuracy. Works only on iOS for now.
+- `?gps-interval=<ms>`: Android only. Overrides the location refresh interval; `?gps-interval` alone restores the mode-derived default. Navigation normally polls at 10 Hz (100 ms), which is a candidate for a large power saving -- see [POWER_MEASUREMENT.md](POWER_MEASUREMENT.md).
+- `?no-compass` / `?compass`: Android only. Stops or restarts compass updates, which normally arrive at `SENSOR_DELAY_UI` (~16 Hz) and are pushed into the renderer.
 
 ## Place Page
 

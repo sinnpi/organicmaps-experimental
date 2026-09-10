@@ -54,7 +54,25 @@ double constexpr kVSyncInterval = 0.06;
 // Metal/Vulkan rendering is fast, so we can decrease sync inverval.
 double constexpr kVSyncIntervalMetalVulkan = 0.03;
 
+// How long to park the render thread when the graphics context refuses to start a frame.
+// Short enough to be imperceptible when the surface becomes available again.
+auto constexpr kBlockedFrameSleep = std::chrono::milliseconds(32);
+
+float constexpr kLowPowerContextOpacity = 0.7f;
+
 std::string const kTransitBackgroundColor = "TransitBackground";
+
+bool IsLowPowerContextState(dp::RenderState const & state)
+{
+  switch (state.GetProgram<gpu::Program>())
+  {
+  case gpu::Program::AreaOutline:
+  case gpu::Program::Line:
+  case gpu::Program::DashedLine:
+  case gpu::Program::CapJoin: return true;
+  default: return false;
+  }
+}
 
 bool IsTextUserMarkState(dp::RenderState const & state)
 {
@@ -266,6 +284,9 @@ void FrontendRenderer::AcceptMessage(ref_ptr<Message> message)
     dp::RenderState const & state = msg->GetState();
     TileKey const & key = msg->GetKey();
     drape_ptr<dp::RenderBucket> bucket = msg->AcceptBuffer();
+    if (m_lowPowerNavigationMode && !IsLowPowerContextState(state))
+      break;
+
     if (key.m_zoomLevel == GetCurrentZoom() && CheckTileGenerations(key))
     {
       PrepareBucket(state, bucket);
@@ -280,6 +301,9 @@ void FrontendRenderer::AcceptMessage(ref_ptr<Message> message)
     TOverlaysRenderData renderData = msg->AcceptRenderData();
     for (auto & overlayRenderData : renderData)
     {
+      if (m_lowPowerNavigationMode)
+        continue;
+
       if (overlayRenderData.m_tileKey.m_zoomLevel == GetCurrentZoom() &&
           CheckTileGenerations(overlayRenderData.m_tileKey))
       {
@@ -346,6 +370,12 @@ void FrontendRenderer::AcceptMessage(ref_ptr<Message> message)
     TUserMarksRenderData marksRenderData = msg->AcceptRenderData();
     for (auto & renderData : marksRenderData)
     {
+      // Route points and search results are the marks the low power mode keeps: both are there
+      // because the user asked for them, unlike the map's own marks.
+      auto const layer = GetDepthLayer(renderData.m_state);
+      if (m_lowPowerNavigationMode && layer != DepthLayer::RoutingMarkLayer && layer != DepthLayer::SearchMarkLayer)
+        continue;
+
       if (renderData.m_tileKey.m_zoomLevel == GetCurrentZoom() && CheckTileGenerations(renderData.m_tileKey))
       {
         PrepareBucket(renderData.m_state, renderData.m_bucket);
@@ -1000,6 +1030,40 @@ void FrontendRenderer::AcceptMessage(ref_ptr<Message> message)
     break;
   }
 
+  case Message::Type::SetFollowingModeFrameRate:
+  {
+    ref_ptr<SetFollowingModeFrameRateMessage> msg = message;
+    m_followingModeFrameRate = std::clamp(msg->GetFps(), kMinFollowingModeFrameRate, kMaxFollowingModeFrameRate);
+    break;
+  }
+
+  case Message::Type::SetNavigationDeadband:
+  {
+    ref_ptr<SetNavigationDeadbandMessage> msg = message;
+    m_navigationDeadbandPx = std::max(msg->GetThresholdPx(), 0.0);
+    // Skipping a scene redraw only saves anything if the previous frame can be re-composited.
+    m_postprocessRenderer->SetFrameReuseWhileFollowingAllowed(m_navigationDeadbandPx > 0.0);
+    m_hasLastDrawnScreen = false;
+    break;
+  }
+
+  case Message::Type::SetLowPowerNavigationMode:
+  {
+    ref_ptr<SetLowPowerNavigationModeMessage> msg = message;
+    if (m_lowPowerNavigationMode == msg->IsEnabled())
+      break;
+
+    m_lowPowerNavigationMode = msg->IsEnabled();
+    m_routeRenderer->SetLowPowerMode(m_lowPowerNavigationMode);
+    m_frameData.m_forceFullRedrawNextFrame = true;
+    m_overlayTree->InvalidateOnNextFrame();
+    // The backend invalidates its current read on entry. Request the low-power line context immediately,
+    // and force the complete scene to be rebuilt when returning to the normal renderer.
+    m_forceUpdateScene = true;
+    m_forceUpdateUserMarks = true;
+    break;
+  }
+
   case Message::Type::NotifyRenderThread:
   {
     ref_ptr<NotifyRenderThreadMessage> msg = message;
@@ -1130,18 +1194,22 @@ void FrontendRenderer::UpdateContextDependentResources()
 
   if (IsValidCurrentZoom())
   {
-    // Request new tiles.
+    // The low-power renderer still needs base-map line geometry for its sparse context layer.
     ScreenBase const & screen = m_userEventStream.GetCurrentScreen();
     m_lastReadedModelView = screen;
     m_requestedTiles->Set(screen, m_isIsometry || screen.isPerspective(), m_forceUpdateScene, m_forceUpdateUserMarks,
                           ResolveTileKeys(screen));
     m_commutator->PostMessage(ThreadsCommutator::ResourceUploadThread, make_unique_dp<UpdateReadManagerMessage>(),
                               MessagePriority::UberHighSingleton);
-    m_commutator->PostMessage(ThreadsCommutator::ResourceUploadThread, make_unique_dp<RegenerateTransitMessage>(),
-                              MessagePriority::Normal);
+    if (!m_lowPowerNavigationMode)
+    {
+      m_commutator->PostMessage(ThreadsCommutator::ResourceUploadThread, make_unique_dp<RegenerateTransitMessage>(),
+                                MessagePriority::Normal);
+    }
   }
 
-  m_gpsTrackRenderer->Update();
+  if (!m_lowPowerNavigationMode)
+    m_gpsTrackRenderer->Update();
 }
 
 void FrontendRenderer::FollowRoute(int preferredZoomLevel, int preferredZoomLevelIn3d, bool enableAutoZoom,
@@ -1194,7 +1262,7 @@ void FrontendRenderer::InvalidateRect(m2::RectD const & gRect)
                               make_unique_dp<InvalidateReadManagerRectMessage>(blocker, tiles), MessagePriority::High);
     blocker.Wait();
 
-    // Request new tiles.
+    // Request new tiles. In low-power mode only their line geometry is displayed.
     m_lastReadedModelView = screen;
     m_requestedTiles->Set(screen, m_isIsometry || screen.isPerspective(), m_forceUpdateScene, m_forceUpdateUserMarks,
                           ResolveTileKeys(screen));
@@ -1474,78 +1542,98 @@ void FrontendRenderer::RenderScene(ScreenBase const & modelView, bool activeFram
     m_context->ApplyFramebuffer("Static frame");
     m_viewport.Apply(m_context);
 
-    RenderTileBackgroundLayer(modelView);
-
-    Render2dLayer(modelView);
-    RenderUserMarksLayer(modelView, DepthLayer::UserLineLayer);
-
-    bool const hasTransitRouteData = HasTransitRouteData();
-    if (m_buildingsFramebuffer->IsSupported() && !m_routeRenderer->IsRulerRoute())
+    if (m_lowPowerNavigationMode)
     {
-      RenderTrafficLayer(modelView);
-      if (!hasTransitRouteData)
-        RenderRouteLayer(modelView);
-      Render3dLayer(modelView);
+      // Keep only dim line work for orientation, then draw the route and its small endpoint/safety marks over
+      // the true-black clear color. Map labels, area fills, buildings, traffic and other overlays stay suppressed.
+      RenderLowPowerContextLayer(modelView);
+      RenderRouteLayer(modelView);
+      {
+        StencilWriterGuard guard(make_ref(m_postprocessRenderer), m_context);
+        RenderNonDisplaceableUserMarksLayer(modelView, DepthLayer::RoutingMarkLayer);
+        // Search results are placed without the overlay tree, which is not built in this mode.
+        RenderNonDisplaceableUserMarksLayer(modelView, DepthLayer::SearchMarkLayer);
+      }
+      if (m_selectionShape && m_selectionShape->GetSelectedObject() == SelectionShape::OBJECT_TRACK)
+        m_selectionShape->Render(m_context, make_ref(m_gpuProgramManager), modelView, GetCurrentZoom(), m_frameValues);
     }
     else
     {
-      Render3dLayer(modelView);
+      RenderTileBackgroundLayer(modelView);
 
-      RenderTrafficLayer(modelView);
-      if (!hasTransitRouteData)
+      Render2dLayer(modelView);
+      RenderUserMarksLayer(modelView, DepthLayer::UserLineLayer);
+
+      bool const hasTransitRouteData = HasTransitRouteData();
+      if (m_buildingsFramebuffer->IsSupported() && !m_routeRenderer->IsRulerRoute())
+      {
+        RenderTrafficLayer(modelView);
+        if (!hasTransitRouteData)
+          RenderRouteLayer(modelView);
+        Render3dLayer(modelView);
+      }
+      else
+      {
+        Render3dLayer(modelView);
+
+        RenderTrafficLayer(modelView);
+        if (!hasTransitRouteData)
+          RenderRouteLayer(modelView);
+      }
+      RenderMwmBorderLayer(modelView);
+
+      m_context->Clear(dp::ClearBits::DepthBit, dp::kClearBitsStoreAll);
+
+      if (m_selectionShape)
+      {
+        SelectionShape::ESelectedObject selectedObject = m_selectionShape->GetSelectedObject();
+        if (selectedObject == SelectionShape::OBJECT_MY_POSITION)
+        {
+          ASSERT(m_myPositionController->IsModeHasPosition(), ());
+          m_selectionShape->SetPosition(m_myPositionController->Position());
+          m_selectionShape->Render(m_context, make_ref(m_gpuProgramManager), modelView, GetCurrentZoom(),
+                                   m_frameValues);
+        }
+        else if (selectedObject == SelectionShape::OBJECT_POI)
+        {
+          m_selectionShape->Render(m_context, make_ref(m_gpuProgramManager), modelView, GetCurrentZoom(),
+                                   m_frameValues);
+        }
+      }
+
+      {
+        StencilWriterGuard guard(make_ref(m_postprocessRenderer), m_context);
+        RenderOverlayLayer(modelView);
+      }
+
+      m_gpsTrackRenderer->RenderTrack(m_context, make_ref(m_gpuProgramManager), modelView, GetCurrentZoom(),
+                                      m_frameValues);
+
+      if (m_selectionShape && (m_selectionShape->GetSelectedObject() == SelectionShape::OBJECT_USER_MARK ||
+                               m_selectionShape->GetSelectedObject() == SelectionShape::OBJECT_TRACK))
+      {
+        m_selectionShape->Render(m_context, make_ref(m_gpuProgramManager), modelView, GetCurrentZoom(), m_frameValues);
+      }
+
+      if (hasTransitRouteData)
         RenderRouteLayer(modelView);
-    }
-    RenderMwmBorderLayer(modelView);
 
-    m_context->Clear(dp::ClearBits::DepthBit, dp::kClearBitsStoreAll);
-
-    if (m_selectionShape)
-    {
-      SelectionShape::ESelectedObject selectedObject = m_selectionShape->GetSelectedObject();
-      if (selectedObject == SelectionShape::OBJECT_MY_POSITION)
       {
-        ASSERT(m_myPositionController->IsModeHasPosition(), ());
-        m_selectionShape->SetPosition(m_myPositionController->Position());
-        m_selectionShape->Render(m_context, make_ref(m_gpuProgramManager), modelView, GetCurrentZoom(), m_frameValues);
+        StencilWriterGuard guard(make_ref(m_postprocessRenderer), m_context);
+        RenderUserMarksLayer(modelView, DepthLayer::UserMarkLayer);
+        RenderUserMarksLayer(modelView, DepthLayer::RoutingBottomMarkLayer);
+        RenderUserMarksLayer(modelView, DepthLayer::RoutingMarkLayer);
+        RenderNonDisplaceableUserMarksLayer(modelView, DepthLayer::SearchMarkLayer);
       }
-      else if (selectedObject == SelectionShape::OBJECT_POI)
-      {
-        m_selectionShape->Render(m_context, make_ref(m_gpuProgramManager), modelView, GetCurrentZoom(), m_frameValues);
-      }
+
+      if (!HasRouteData())
+        RenderTransitSchemeLayer(modelView);
+
+      m_drapeApiRenderer->Render(m_context, make_ref(m_gpuProgramManager), modelView, m_frameValues);
+
+      for (auto const & arrow : m_overlayTree->GetDisplacementInfo())
+        m_debugRectRenderer->DrawArrow(m_context, modelView, arrow);
     }
-
-    {
-      StencilWriterGuard guard(make_ref(m_postprocessRenderer), m_context);
-      RenderOverlayLayer(modelView);
-    }
-
-    m_gpsTrackRenderer->RenderTrack(m_context, make_ref(m_gpuProgramManager), modelView, GetCurrentZoom(),
-                                    m_frameValues);
-
-    if (m_selectionShape && (m_selectionShape->GetSelectedObject() == SelectionShape::OBJECT_USER_MARK ||
-                             m_selectionShape->GetSelectedObject() == SelectionShape::OBJECT_TRACK))
-    {
-      m_selectionShape->Render(m_context, make_ref(m_gpuProgramManager), modelView, GetCurrentZoom(), m_frameValues);
-    }
-
-    if (hasTransitRouteData)
-      RenderRouteLayer(modelView);
-
-    {
-      StencilWriterGuard guard(make_ref(m_postprocessRenderer), m_context);
-      RenderUserMarksLayer(modelView, DepthLayer::UserMarkLayer);
-      RenderUserMarksLayer(modelView, DepthLayer::RoutingBottomMarkLayer);
-      RenderUserMarksLayer(modelView, DepthLayer::RoutingMarkLayer);
-      RenderNonDisplaceableUserMarksLayer(modelView, DepthLayer::SearchMarkLayer);
-    }
-
-    if (!HasRouteData())
-      RenderTransitSchemeLayer(modelView);
-
-    m_drapeApiRenderer->Render(m_context, make_ref(m_gpuProgramManager), modelView, m_frameValues);
-
-    for (auto const & arrow : m_overlayTree->GetDisplacementInfo())
-      m_debugRectRenderer->DrawArrow(m_context, modelView, arrow);
   }
 
   if (!m_postprocessRenderer->EndFrame(m_context, make_ref(m_gpuProgramManager), m_viewport))
@@ -1561,7 +1649,7 @@ void FrontendRenderer::RenderScene(ScreenBase const & modelView, bool activeFram
                                    m_frameValues);
   }
 
-  if (m_guiRenderer && !m_screenshotMode)
+  if (m_guiRenderer && !m_screenshotMode && !m_lowPowerNavigationMode)
     m_guiRenderer->Render(m_context, make_ref(m_gpuProgramManager), m_myPositionController->IsInRouting(), modelView);
 
 #if defined(OMIM_OS_DESKTOP)
@@ -1588,6 +1676,19 @@ void FrontendRenderer::Render2dLayer(ScreenBase const & modelView)
   DEBUG_LABEL(m_context, "2D Layer");
   for (drape_ptr<RenderGroup> const & group : layer2d.m_renderGroups)
     RenderSingleGroup(m_context, modelView, make_ref(group));
+}
+
+void FrontendRenderer::RenderLowPowerContextLayer(ScreenBase const & modelView)
+{
+  TRACE_SECTION("[drape] RenderLowPowerContextLayer");
+  RenderLayer & layer = m_layers[static_cast<size_t>(DepthLayer::GeometryLayer)];
+  layer.Sort(make_ref(m_overlayTree));
+
+  CHECK(m_context != nullptr, ());
+  DEBUG_LABEL(m_context, "Low-power context");
+  for (drape_ptr<RenderGroup> const & group : layer.m_renderGroups)
+    if (IsLowPowerContextState(group->GetState()))
+      RenderSingleGroupWithOpacity(m_context, modelView, make_ref(group), kLowPowerContextOpacity);
 }
 
 void FrontendRenderer::PreRender3dLayer(ScreenBase const & modelView)
@@ -1708,7 +1809,7 @@ void FrontendRenderer::RenderTransitBackground()
 void FrontendRenderer::RenderRouteLayer(ScreenBase const & modelView)
 {
   TRACE_SECTION("[drape] RenderRouteLayer");
-  if (HasTransitRouteData())
+  if (HasTransitRouteData() && !m_lowPowerNavigationMode)
     RenderTransitBackground();
 
   if (m_routeRenderer->HasData() || m_routeRenderer->HasPreviewData())
@@ -1717,7 +1818,7 @@ void FrontendRenderer::RenderRouteLayer(ScreenBase const & modelView)
     DEBUG_LABEL(m_context, "Route Layer");
     m_context->Clear(dp::ClearBits::DepthBit, dp::kClearBitsStoreAll);
     m_routeRenderer->RenderRoute(m_context, make_ref(m_gpuProgramManager), modelView,
-                                 m_trafficRenderer->HasRenderData(), m_frameValues);
+                                 !m_lowPowerNavigationMode && m_trafficRenderer->HasRenderData(), m_frameValues);
   }
 }
 
@@ -1782,13 +1883,27 @@ void FrontendRenderer::RenderEmptyFrame()
     return;
 
   m_context->SetFramebuffer(nullptr /* default */);
-  auto const c = dp::Color(drule::GetCurrentRules().GetBgColor(1 /* scale */), 255);
+  auto const c = m_lowPowerNavigationMode ? dp::Color::Black()
+                                          : dp::Color(drule::GetCurrentRules().GetBgColor(1 /* scale */), 255);
   m_context->SetClearColor(c);
   m_context->Clear(dp::ClearBits::ColorBit, dp::ClearBits::ColorBit /* storeBits */);
   m_context->ApplyFramebuffer("Empty frame");
   m_viewport.Apply(m_context);
   m_context->EndRendering();
   m_context->Present();
+}
+
+void FrontendRenderer::SleepWhileRenderingIsBlocked()
+{
+  // A paused surface (a dialog or a translucent activity over the map) makes the context refuse to
+  // start a frame without disabling rendering, so RenderFrame() bails out before reaching any of its
+  // waits and this thread would otherwise spin at 100% CPU. Resuming does not post a message, so
+  // parking on the message queue could sleep until an unrelated message arrives; a short sleep
+  // bounds the resume latency instead.
+  // Skipped while rendering is being disabled, so the SetRenderingEnabled(false) handshake, which
+  // blocks the UI thread until CheckRenderingEnabled() is reached, is not delayed.
+  if (IsRenderingEnabled())
+    std::this_thread::sleep_for(kBlockedFrameSleep);
 }
 
 void FrontendRenderer::RenderFrame()
@@ -1801,6 +1916,7 @@ void FrontendRenderer::RenderFrame()
   {
     m_frameData.m_forceFullRedrawNextFrame = true;
     m_frameData.m_inactiveFramesCounter = 0;
+    SleepWhileRenderingIsBlocked();
     return;
   }
 
@@ -1823,7 +1939,10 @@ void FrontendRenderer::RenderFrame()
     return;
 
   if (!m_context->BeginRendering())
+  {
+    SleepWhileRenderingIsBlocked();
     return;
+  }
 
   // Check for a frame is active.
   bool isActiveFrame = modelViewChanged || viewportChanged || needActiveFrame;
@@ -1841,6 +1960,24 @@ void FrontendRenderer::RenderFrame()
   {
     isActiveFrameForScene |= AnimationSystem::Instance().HasMapAnimations();
     isActiveFrame = true;
+  }
+
+  // While following a route the camera moves smoothly along what is nearly a straight line, and a
+  // 10 Hz position feed keeps an arrow animation running that marks every frame active. The image
+  // can still be identical to the last one drawn, so measure the change and skip the scene redraw
+  // when nothing visible moved. Forced redraws (overlay re-placement, style or mark updates) are
+  // left alone -- they are exactly the frames that do have new content.
+  if (isActiveFrameForScene && m_navigationDeadbandPx > 0.0 && !m_frameData.m_forceFullRedrawNextFrame &&
+      !m_forceUpdateScene && !m_forceUpdateUserMarks && m_myPositionController->IsRouteFollowingActive() &&
+      m_hasLastDrawnScreen && IsScreenChangeBelowDeadband(m_lastDrawnScreen, modelView, m_navigationDeadbandPx))
+  {
+    isActiveFrameForScene = false;
+  }
+
+  if (isActiveFrameForScene)
+  {
+    m_lastDrawnScreen = modelView;
+    m_hasLastDrawnScreen = true;
   }
 
   m_routeRenderer->UpdatePreview(modelView);
@@ -1889,7 +2026,9 @@ void FrontendRenderer::RenderFrame()
   }
 
   bool const canSuspend = m_frameData.m_inactiveFramesCounter > FrameData::kMaxInactiveFrames;
-  m_frameData.m_forceFullRedrawNextFrame = m_overlayTree->IsNeedUpdate() || m_searchMarkTextOverlayTree->IsNeedUpdate();
+  // The low power mode does not build the main overlay tree, but it does show search results.
+  m_frameData.m_forceFullRedrawNextFrame =
+      m_searchMarkTextOverlayTree->IsNeedUpdate() || (!m_lowPowerNavigationMode && m_overlayTree->IsNeedUpdate());
   if (canSuspend)
   {
 #if defined(OMIM_OS_DESKTOP)
@@ -1925,12 +2064,15 @@ void FrontendRenderer::RenderFrame()
   m_context->Present();
 #endif
 
-  // Limit fps in following mode.
-  double constexpr kFrameTime = 1.0 / 30.0;
+  // The sparse mode does not need fluid full-map animation. Preserve lower debug overrides while
+  // capping its normal following rate at 15 FPS.
+  uint32_t const followingModeFrameRate =
+      m_lowPowerNavigationMode ? std::min(m_followingModeFrameRate, 15u) : m_followingModeFrameRate;
+  double const frameTime = 1.0 / followingModeFrameRate;
   auto const ft = m_frameData.m_timer.ElapsedSeconds();
-  if (!canSuspend && ft < kFrameTime && m_myPositionController->IsRouteFollowingActive())
+  if (!canSuspend && ft < frameTime && m_myPositionController->IsRouteFollowingActive())
   {
-    auto const ms = static_cast<uint32_t>((kFrameTime - ft) * 1000);
+    auto const ms = static_cast<uint32_t>((frameTime - ft) * 1000);
     std::this_thread::sleep_for(std::chrono::milliseconds(ms));
   }
 
@@ -2017,6 +2159,14 @@ void FrontendRenderer::RenderSingleGroup(ref_ptr<dp::GraphicsContext> context, S
   group->Render(context, make_ref(m_gpuProgramManager), modelView, m_frameValues, make_ref(m_debugRectRenderer));
 }
 
+void FrontendRenderer::RenderSingleGroupWithOpacity(ref_ptr<dp::GraphicsContext> context, ScreenBase const & modelView,
+                                                    ref_ptr<BaseRenderGroup> group, float opacity)
+{
+  group->UpdateAnimation();
+  group->SetOpacity(opacity);
+  group->Render(context, make_ref(m_gpuProgramManager), modelView, m_frameValues, make_ref(m_debugRectRenderer));
+}
+
 void FrontendRenderer::RefreshProjection(ScreenBase const & screen)
 {
   auto m = dp::MakeProjection(m_apiVersion, 0.0f, screen.GetWidth(), screen.GetHeight(), 0.0f);
@@ -2057,7 +2207,8 @@ void FrontendRenderer::RefreshPivotTransform(ScreenBase const & screen)
 void FrontendRenderer::RefreshBgColor()
 {
   auto const scale = std::min(df::GetDrawTileScale(m_userEventStream.GetCurrentScreen()), scales::GetUpperStyleScale());
-  auto const c = dp::Color(drule::GetCurrentRules().GetBgColor(scale), 255);
+  auto const c =
+      m_lowPowerNavigationMode ? dp::Color::Black() : dp::Color(drule::GetCurrentRules().GetBgColor(scale), 255);
 
   CHECK(m_context != nullptr, ());
   m_context->SetClearColor(c);
@@ -2388,8 +2539,11 @@ TTilesCollection FrontendRenderer::ResolveTileKeys(ScreenBase const & screen)
   RemoveRenderGroupsLater([this](drape_ptr<RenderGroup> const & group)
   { return group->GetTileKey().m_zoomLevel != GetCurrentZoom(); });
 
-  m_trafficRenderer->OnUpdateViewport(result, GetCurrentZoom(), tilesToDelete);
-  m_tileBackgroundRenderer->OnUpdateViewport(m_context, result, GetCurrentZoom());
+  if (!m_lowPowerNavigationMode)
+  {
+    m_trafficRenderer->OnUpdateViewport(result, GetCurrentZoom(), tilesToDelete);
+    m_tileBackgroundRenderer->OnUpdateViewport(m_context, result, GetCurrentZoom());
+  }
 
 #if defined(DRAPE_MEASURER_BENCHMARK) && defined(GENERATING_STATISTIC)
   DrapeMeasurer::Instance().StartScenePreparing();
@@ -2686,7 +2840,9 @@ void FrontendRenderer::PrepareScene(ScreenBase const & modelView)
 void FrontendRenderer::UpdateScene(ScreenBase const & modelView)
 {
   TRACE_SECTION("[drape] UpdateScene");
-  m_gpsTrackRenderer->Update();
+
+  if (!m_lowPowerNavigationMode)
+    m_gpsTrackRenderer->Update();
 
   auto removePredicate = [this](drape_ptr<RenderGroup> const & group)
   {

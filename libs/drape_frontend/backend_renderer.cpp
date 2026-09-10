@@ -162,6 +162,14 @@ void BackendRenderer::AcceptMessage(ref_ptr<Message> message)
     break;
   }
 
+  case Message::Type::SetLowPowerNavigationMode:
+  {
+    ref_ptr<SetLowPowerNavigationModeMessage> msg = message;
+    if (msg->IsEnabled())
+      m_readManager->InvalidateAll();
+    break;
+  }
+
   case Message::Type::ShowChoosePositionMark:
   {
     RecacheChoosePositionMark();

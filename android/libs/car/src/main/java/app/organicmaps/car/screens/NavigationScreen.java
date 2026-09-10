@@ -115,9 +115,10 @@ public class NavigationScreen extends BaseMapScreen implements RoutingController
   {
     Logger.i(TAG);
 
-    /// @todo Pass maxDistM from RouteSimulationProvider?
-    /// Result speed between points will be in range (25, 50] km/h (for 1 second update interval).
-    final double kMaxDistM = 13.9; // 13.9 m/s == 50 km/h
+    // The provider advances by distance at a constant speed, so this only caps the spacing of the
+    // polyline it interpolates along.
+    final double kMaxDistM = 100.0;
+    final double kSimulationSpeedMps = 13.9; // 50 km/h
     final JunctionInfo[] points = Framework.nativeGetRouteJunctionPoints(kMaxDistM);
     if (points == null)
     {
@@ -125,7 +126,7 @@ public class NavigationScreen extends BaseMapScreen implements RoutingController
       return;
     }
 
-    getLocationHelper().startNavigationSimulation(points);
+    getLocationHelper().startNavigationSimulation(points, kSimulationSpeedMps);
     mRouteSimulationEnabled = true;
   }
 

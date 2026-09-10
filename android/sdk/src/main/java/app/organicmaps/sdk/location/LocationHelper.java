@@ -61,6 +61,9 @@ public class LocationHelper implements BaseLocationProvider.Listener
   @Nullable
   private BaseLocationProvider mOldLocationProvider;
   private long mInterval;
+  // 0 means "use the interval implied by the current mode"; see setIntervalOverride().
+  private long mIntervalOverride = 0;
+  private boolean mCompassEnabled = true;
   private boolean mInFirstRun;
   private boolean mActive;
   private final Handler mHandler;
@@ -265,14 +268,24 @@ public class LocationHelper implements BaseLocationProvider.Listener
     mLocationProvider.start(mInterval);
   }
 
+  public void startNavigationSimulation(JunctionInfo[] points)
+  {
+    startNavigationSimulation(points, RouteSimulationProvider.DEFAULT_SPEED_MPS);
+  }
+
+  public boolean isNavigationSimulationActive()
+  {
+    return mLocationProvider instanceof RouteSimulationProvider;
+  }
+
   // RouteSimulationProvider doesn't really require location permissions.
   @SuppressLint("MissingPermission")
-  public void startNavigationSimulation(JunctionInfo[] points)
+  public void startNavigationSimulation(JunctionInfo[] points, double speedMps)
   {
     Logger.i(TAG);
     mOldLocationProvider = mLocationProvider;
     mLocationProvider.stop();
-    mLocationProvider = new RouteSimulationProvider(mContext, this, points);
+    mLocationProvider = new RouteSimulationProvider(mContext, this, points, speedMps);
     mActive = true;
     mLocationProvider.start(mInterval);
   }
@@ -330,8 +343,50 @@ public class LocationHelper implements BaseLocationProvider.Listener
     mListeners.removeObserver(listener);
   }
 
+  /**
+   * Overrides the location refresh interval, or restores the mode-derived one when {@code 0}.
+   * Navigation normally polls at 10 Hz, which is a candidate for the largest single power saving in
+   * the app; this makes the rate a measurable variable -- see docs/POWER_MEASUREMENT.md.
+   */
+  @RequiresPermission(anyOf = {ACCESS_COARSE_LOCATION, ACCESS_FINE_LOCATION})
+  public void setIntervalOverride(long intervalMs)
+  {
+    Logger.i(TAG, "intervalMs = " + intervalMs);
+    mIntervalOverride = intervalMs;
+    restartWithNewMode();
+  }
+
+  public long getIntervalOverride()
+  {
+    return mIntervalOverride;
+  }
+
+  /**
+   * Starts or stops compass updates, which normally arrive at {@code SENSOR_DELAY_UI}. The choice is
+   * sticky: start() restarts the sensor on every mode change, which would otherwise silently undo a
+   * disable partway through a measurement run.
+   */
+  public void setCompassEnabled(boolean enabled)
+  {
+    Logger.i(TAG, "enabled = " + enabled);
+    mCompassEnabled = enabled;
+    if (enabled)
+      startCompassIfEnabled();
+    else
+      mSensorHelper.stop();
+  }
+
+  private void startCompassIfEnabled()
+  {
+    if (mCompassEnabled && LocationUtils.checkFineLocationPermission(mContext))
+      mSensorHelper.start();
+  }
+
   private long calcLocationUpdatesInterval()
   {
+    if (mIntervalOverride > 0)
+      return mIntervalOverride;
+
     if (RoutingController.get().isNavigating())
       return INTERVAL_NAVIGATION_MS;
 
@@ -384,8 +439,7 @@ public class LocationHelper implements BaseLocationProvider.Listener
     Logger.i(TAG);
     checkForAgpsUpdates();
 
-    if (LocationUtils.checkFineLocationPermission(mContext))
-      mSensorHelper.start();
+    startCompassIfEnabled();
 
     final long oldInterval = mInterval;
     mInterval = calcLocationUpdatesInterval();

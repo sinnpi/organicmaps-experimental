@@ -896,6 +896,26 @@ void DrapeEngine::ShowDebugInfo(bool shown)
                                   MessagePriority::Normal);
 }
 
+void DrapeEngine::SetFollowingModeFrameRate(uint32_t fps)
+{
+  m_threadCommutator->PostMessage(ThreadsCommutator::RenderThread,
+                                  make_unique_dp<SetFollowingModeFrameRateMessage>(fps), MessagePriority::Normal);
+}
+
+void DrapeEngine::SetNavigationDeadband(double thresholdPx)
+{
+  m_threadCommutator->PostMessage(ThreadsCommutator::RenderThread,
+                                  make_unique_dp<SetNavigationDeadbandMessage>(thresholdPx), MessagePriority::Normal);
+}
+
+void DrapeEngine::SetLowPowerNavigationMode(bool enabled)
+{
+  m_threadCommutator->PostMessage(ThreadsCommutator::ResourceUploadThread,
+                                  make_unique_dp<SetLowPowerNavigationModeMessage>(enabled), MessagePriority::Normal);
+  m_threadCommutator->PostMessage(ThreadsCommutator::RenderThread,
+                                  make_unique_dp<SetLowPowerNavigationModeMessage>(enabled), MessagePriority::Normal);
+}
+
 void DrapeEngine::EnableDebugRectRendering(bool enabled)
 {
   m_threadCommutator->PostMessage(ThreadsCommutator::RenderThread,

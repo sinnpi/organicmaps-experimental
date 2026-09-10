@@ -38,6 +38,9 @@ class MapButtonsViewModel : ViewModel() {
     private val _topHeaderHeight = MutableLiveData(0)
     val topHeaderHeight: LiveData<Int> = _topHeaderHeight
 
+    private val _lowPowerMode = MutableLiveData(false)
+    val lowPowerMode: LiveData<Boolean> = _lowPowerMode
+
     fun setButtonsHidden(buttonsHidden: Boolean) {
         _buttonsHidden.value = buttonsHidden
     }
@@ -72,6 +75,10 @@ class MapButtonsViewModel : ViewModel() {
 
     fun setTrackRecorderState(state: Boolean) {
         _trackRecorderState.value = state
+    }
+
+    fun setLowPowerMode(enabled: Boolean) {
+        _lowPowerMode.value = enabled
     }
 
     fun setTopHeaderHeight(height: Int) {

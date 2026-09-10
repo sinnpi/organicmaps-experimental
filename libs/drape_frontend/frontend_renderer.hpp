@@ -13,6 +13,7 @@
 #include "drape_frontend/render_state_extension.hpp"
 #include "drape_frontend/requested_tiles.hpp"
 #include "drape_frontend/route_renderer.hpp"
+#include "drape_frontend/screen_deadband.hpp"
 #include "drape_frontend/threads_commutator.hpp"
 #include "drape_frontend/tile_background_renderer.hpp"
 #include "drape_frontend/traffic_renderer.hpp"
@@ -48,6 +49,13 @@ class RenderBucket;
 
 namespace df
 {
+// The renderer caps its frame rate while following a route, where the camera moves smoothly and
+// predictably. Configurable so that the frame rate can be swept when attributing power draw,
+// see docs/POWER_MEASUREMENT.md.
+uint32_t constexpr kDefaultFollowingModeFrameRate = 30;
+uint32_t constexpr kMinFollowingModeFrameRate = 1;
+uint32_t constexpr kMaxFollowingModeFrameRate = 120;
+
 class DebugRectRenderer;
 class DrapeNotifier;
 class ScenarioManager;
@@ -175,9 +183,12 @@ protected:
 private:
   void OnResize(ScreenBase const & screen);
   void RenderScene(ScreenBase const & modelView, bool activeFrame);
+  void SleepWhileRenderingIsBlocked();
   void PrepareBucket(dp::RenderState const & state, drape_ptr<dp::RenderBucket> & bucket);
   void RenderSingleGroup(ref_ptr<dp::GraphicsContext> context, ScreenBase const & modelView,
                          ref_ptr<BaseRenderGroup> group);
+  void RenderSingleGroupWithOpacity(ref_ptr<dp::GraphicsContext> context, ScreenBase const & modelView,
+                                    ref_ptr<BaseRenderGroup> group, float opacity);
   void RefreshProjection(ScreenBase const & screen);
   void RefreshZScale(ScreenBase const & screen);
   void RefreshPivotTransform(ScreenBase const & screen);
@@ -193,6 +204,7 @@ private:
   // Render part of scene
   void RenderTileBackgroundLayer(ScreenBase const & modelView);
   void Render2dLayer(ScreenBase const & modelView);
+  void RenderLowPowerContextLayer(ScreenBase const & modelView);
   void PreRender3dLayer(ScreenBase const & modelView);
   void Render3dLayer(ScreenBase const & modelView);
   void RenderMwmBorderLayer(ScreenBase const & modelView);
@@ -460,6 +472,12 @@ private:
     static uint32_t constexpr kMaxInactiveFrames = 2;
   };
   FrameData m_frameData;
+  uint32_t m_followingModeFrameRate = kDefaultFollowingModeFrameRate;
+  bool m_lowPowerNavigationMode = false;
+  // 0 disables the deadband, restoring a scene redraw on every active frame.
+  double m_navigationDeadbandPx = 0.0;
+  ScreenBase m_lastDrawnScreen;
+  bool m_hasLastDrawnScreen = false;
 
 #ifdef DEBUG
   bool m_isTeardowned;

@@ -88,6 +88,7 @@ public:
 
   void UpdateDistanceFromBegin(double distanceFromBegin);
   void SetFollowingEnabled(bool enabled);
+  void SetLowPowerMode(bool enabled);
 
   void AddPreviewSegment(dp::DrapeID id, PreviewInfo && info);
   void RemovePreviewSegment(dp::DrapeID id);
@@ -133,6 +134,7 @@ private:
 
   double m_distanceFromBegin;
   bool m_followingEnabled;
+  bool m_lowPowerMode = false;
   Subroutes m_subroutes;
   std::unordered_set<dp::DrapeID> m_hiddenSubroutes;
 

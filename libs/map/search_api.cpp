@@ -204,7 +204,7 @@ bool SearchAPI::SearchInViewport(ViewportSearchParams params)
   p.m_query = std::move(params.m_query);
   p.m_inputLocale = std::move(params.m_inputLocale);
   p.m_position = m_delegate.GetCurrentPosition();
-  SetViewportIfPossible(p);  // Search request will be delayed if viewport is not available.
+  SetViewportSearchRectIfPossible(p);  // Search request will be delayed if viewport is not available.
   p.m_maxNumResults = SearchParams::kDefaultNumResultsInViewport;
   p.m_mode = Mode::Viewport;
   p.m_suggestsEnabled = false;
@@ -268,7 +268,7 @@ void SearchAPI::PokeSearchInViewport(bool forceSearch)
 
   // Copy is intentional here, to skip possible duplicating requests.
   auto params = m_searchIntents[static_cast<size_t>(Mode::Viewport)].m_params;
-  SetViewportIfPossible(params);
+  SetViewportSearchRectIfPossible(params);
   params.m_position = m_delegate.GetCurrentPosition();
   params.m_onResults = ViewportSearchCallback(m_viewport, *this, m_viewportParams.m_onCompleted);
 
@@ -414,6 +414,12 @@ void SearchAPI::SetViewportIfPossible(SearchParams & params)
 {
   if (m_isViewportInitialized)
     params.m_viewport = m_viewport;
+}
+
+void SearchAPI::SetViewportSearchRectIfPossible(SearchParams & params)
+{
+  if (m_isViewportInitialized)
+    params.m_viewport = m_delegate.GetViewportSearchRect(m_viewport);
 }
 
 void SearchAPI::SetLocale(std::string const & locale)

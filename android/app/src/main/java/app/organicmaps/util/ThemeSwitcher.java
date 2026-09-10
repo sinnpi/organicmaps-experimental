@@ -48,6 +48,14 @@ public enum ThemeSwitcher
   @androidx.annotation.UiThread
   public void synchronizeApplicationTheme()
   {
+    // Override the UI theme, not the saved preference, so all sheets and dialogs follow OLED mode.
+    if (Config.isOledPowerSaveEnabled() && !MwmApplication.from(mContext).getDisplayManager().isCarDisplayUsed())
+    {
+      mSynchronizedThemeController.stop();
+      setTheme(Config.UiTheme.DARK);
+      return;
+    }
+
     final Config.UiTheme themePreference = Config.UiTheme.getUiThemePreference();
     final boolean isScheduledTheme = themePreference == Config.UiTheme.SCHEDULED;
     final boolean isNavigationAutoDark =
@@ -88,7 +96,9 @@ public enum ThemeSwitcher
   @androidx.annotation.UiThread
   public void synchronizeMapStyle(@UiContext @NonNull Context context, boolean isRendererActive)
   {
-    var isDarkMode = ThemeUtils.isDarkTheme(context);
+    // OLED mode supplies its own black background. Keep the bright street palette independently
+    // of the forced dark UI, otherwise the streets dim when the activity's theme catches up.
+    var isDarkMode = !Config.isOledPowerSaveEnabled() && ThemeUtils.isDarkTheme(context);
     var mapStyle = calculateMapStyle(isDarkMode);
 
     if (MapStyle.get() != mapStyle)

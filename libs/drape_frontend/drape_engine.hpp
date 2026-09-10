@@ -251,6 +251,9 @@ public:
   void RunFirstLaunchAnimation();
 
   void ShowDebugInfo(bool shown);
+  void SetFollowingModeFrameRate(uint32_t fps);
+  void SetNavigationDeadband(double thresholdPx);
+  void SetLowPowerNavigationMode(bool enabled);
 
   void UpdateVisualScale(double vs, bool needStopRendering);
   void UpdateMyPositionRoutingOffset(bool useDefault, int offsetY);

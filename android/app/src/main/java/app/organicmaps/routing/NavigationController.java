@@ -2,7 +2,10 @@ package app.organicmaps.routing;
 
 import static app.organicmaps.sdk.util.Utils.dimen;
 
+import android.content.res.ColorStateList;
 import android.content.res.Configuration;
+import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.text.TextUtils;
 import android.view.View;
@@ -14,14 +17,17 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
+import androidx.core.widget.ImageViewCompat;
 import androidx.lifecycle.ViewModelProvider;
 import app.organicmaps.MwmApplication;
 import app.organicmaps.R;
 import app.organicmaps.maplayer.MapButtonsViewModel;
+import app.organicmaps.sdk.Framework;
 import app.organicmaps.sdk.Router;
 import app.organicmaps.sdk.maplayer.traffic.TrafficManager;
 import app.organicmaps.sdk.routing.RoutingController;
 import app.organicmaps.sdk.routing.RoutingInfo;
+import app.organicmaps.sdk.util.Config;
 import app.organicmaps.sdk.util.StringUtils;
 import app.organicmaps.sdk.widget.roadshield.RoadShieldUtils;
 import app.organicmaps.sdk.widgets.lanes.LanesView;
@@ -44,6 +50,7 @@ public class NavigationController implements TrafficManager.TrafficCallback, Nav
   private final ImageView mNextNextTurnImage;
 
   private final View mStreetFrame;
+  private final View mNextTurnFrame;
   private final TextView mNextStreet;
 
   @NonNull
@@ -56,6 +63,40 @@ public class NavigationController implements TrafficManager.TrafficCallback, Nav
   private final View mNextTurnContainer;
 
   private final NavMenu mNavMenu;
+  private final View mNavBottomSheet;
+  private final View mNavBottomSheetLineFrame;
+  private final View mNavigationBarBackground;
+  @NonNull
+  private final NavMenu.OnMenuSizeChangedListener mOnMenuSizeChangedListener;
+  @NonNull
+  private final NavElevationChartController mElevationChart;
+  @NonNull
+  private final NavigationRefreshRate mRefreshRate;
+
+  @Nullable
+  private final Drawable mDefaultStreetFrameBackground;
+  @Nullable
+  private final Drawable mDefaultNextTurnFrameBackground;
+  @Nullable
+  private final Drawable mDefaultNextNextTurnFrameBackground;
+  @Nullable
+  private final Drawable mDefaultNavBottomSheetBackground;
+  @Nullable
+  private final ColorStateList mDefaultNavBottomSheetBackgroundTint;
+  @Nullable
+  private final Drawable mDefaultNavigationBarBackground;
+  @NonNull
+  private final ColorStateList mDefaultNextStreetTextColors;
+  @NonNull
+  private final ColorStateList mDefaultNextTurnTextColors;
+  @Nullable
+  private final ColorStateList mDefaultNextTurnImageTint;
+  @Nullable
+  private final ColorStateList mDefaultNextNextTurnImageTint;
+
+  private boolean mVisibleViewportNarrowed;
+  private int mVisibleViewportBottomInset;
+  private boolean mLowPowerMode;
   View.OnClickListener mOnSettingsClickListener;
   View.OnClickListener mOnVoiceSettingsClickListener;
 
@@ -67,16 +108,19 @@ public class NavigationController implements TrafficManager.TrafficCallback, Nav
 
     mFrame = activity.findViewById(R.id.navigation_frame);
     mNavMenu = new NavMenu(activity, this, onMenuSizeChangedListener);
+    mOnMenuSizeChangedListener = onMenuSizeChangedListener;
     mOnSettingsClickListener = onSettingsClickListener;
     mOnVoiceSettingsClickListener = onVoiceSettingsClickListener;
 
     // Top frame
     mTopFrame = mFrame.findViewById(R.id.nav_top_frame);
-    mTopFrame.addOnLayoutChangeListener(
-        (v, l, t, r, b, ol, ot, or, ob) -> mMapButtonsViewModel.setTopHeaderHeight(computeNavContentHeight()));
-    View turnFrame = mTopFrame.findViewById(R.id.nav_next_turn_frame);
-    mNextTurnImage = turnFrame.findViewById(R.id.turn);
-    mNextTurnDistance = turnFrame.findViewById(R.id.distance);
+    mTopFrame.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+      mMapButtonsViewModel.setTopHeaderHeight(computeNavContentHeight());
+      updateVisibleViewport();
+    });
+    mNextTurnFrame = mTopFrame.findViewById(R.id.nav_next_turn_frame);
+    mNextTurnImage = mNextTurnFrame.findViewById(R.id.turn);
+    mNextTurnDistance = mNextTurnFrame.findViewById(R.id.distance);
 
     mNextNextTurnFrame = mTopFrame.findViewById(R.id.nav_next_next_turn_frame);
     mNextNextTurnImage = mNextNextTurnFrame.findViewById(R.id.turn);
@@ -88,10 +132,27 @@ public class NavigationController implements TrafficManager.TrafficCallback, Nav
 
     mSpeedLimit = mTopFrame.findViewById(R.id.nav_speed_limit);
 
+    mElevationChart = new NavElevationChartController(mFrame.findViewById(R.id.nav_elevation_frame));
+    mRefreshRate = new NavigationRefreshRate(activity.getWindow());
+
     // Blank rectangle below the navbar that hides menu content behind it.
-    final View navigationBarBackground = mFrame.findViewById(R.id.nav_bottom_sheet_nav_bar);
+    mNavigationBarBackground = mFrame.findViewById(R.id.nav_bottom_sheet_nav_bar);
+    final View navigationBarBackground = mNavigationBarBackground;
     final View navBottomSheet = mFrame.findViewById(R.id.nav_bottom_sheet);
+    mNavBottomSheet = navBottomSheet;
+    mNavBottomSheetLineFrame = mNavBottomSheet.findViewById(R.id.line_frame);
     mNextTurnContainer = mFrame.findViewById(R.id.nav_next_turn_container);
+
+    mDefaultStreetFrameBackground = mStreetFrame.getBackground();
+    mDefaultNextTurnFrameBackground = mNextTurnFrame.getBackground();
+    mDefaultNextNextTurnFrameBackground = mNextNextTurnFrame.getBackground();
+    mDefaultNavBottomSheetBackground = mNavBottomSheet.getBackground();
+    mDefaultNavBottomSheetBackgroundTint = ViewCompat.getBackgroundTintList(mNavBottomSheet);
+    mDefaultNavigationBarBackground = mNavigationBarBackground.getBackground();
+    mDefaultNextStreetTextColors = mNextStreet.getTextColors();
+    mDefaultNextTurnTextColors = mNextTurnDistance.getTextColors();
+    mDefaultNextTurnImageTint = ImageViewCompat.getImageTintList(mNextTurnImage);
+    mDefaultNextNextTurnImageTint = ImageViewCompat.getImageTintList(mNextNextTurnImage);
 
     ViewCompat.setOnApplyWindowInsetsListener(mStreetFrame, BaselinePaddingInsetsListener.excludeBottom());
 
@@ -116,6 +177,7 @@ public class NavigationController implements TrafficManager.TrafficCallback, Nav
     // navBottomSheet.getWidth() is 0 on the first inset dispatch (layout hasn't run yet),
     // so mirror the width through a layout listener instead of reading it inline.
     navBottomSheet.addOnLayoutChangeListener((v, l, t, r, b, oL, oT, oR, oB) -> {
+      updateVisibleViewport();
       final int width = r - l;
       final ViewGroup.LayoutParams lp = navigationBarBackground.getLayoutParams();
       if (lp.width != width)
@@ -154,9 +216,17 @@ public class NavigationController implements TrafficManager.TrafficCallback, Nav
     if (showNextNextTurn)
       mNextNextTurnImage.setImageResource(info.nextCarDirection.getTurnRes());
 
-    mLanesView.setLanes(info.lanes);
-
-    updateSpeedLimit(info);
+    if (mLowPowerMode)
+    {
+      mLanesView.setLanes(null);
+      UiUtils.hide(mSpeedLimit);
+    }
+    else
+    {
+      mLanesView.setLanes(info.lanes);
+      UiUtils.show(mSpeedLimit);
+      updateSpeedLimit(info);
+    }
   }
 
   private void updatePedestrian(@NonNull RoutingInfo info)
@@ -177,6 +247,150 @@ public class NavigationController implements TrafficManager.TrafficCallback, Nav
 
     updateStreetView(info);
     mNavMenu.update(info);
+    mElevationChart.onLocationUpdate();
+  }
+
+  /**
+   * Refreshes the elevation profile from the current route. Must be called whenever the route
+   * changes, including reroutes and activity recreation.
+   */
+  public void refreshElevationData()
+  {
+    final boolean show = Config.isNavElevationProfileEnabled() && RoutingController.get().isNavigating();
+    mElevationChart.setData(show ? Framework.nativeGetRouteAltitudeData() : null);
+    updateVisibleViewport();
+  }
+
+  public void refreshLowPowerMode()
+  {
+    final boolean navigating = RoutingController.get().isNavigating();
+    final boolean carDisplayUsed = MwmApplication.from(mFrame.getContext()).getDisplayManager().isCarDisplayUsed();
+    setLowPowerMode(OledPowerSaveMode.shouldEnable(Config.isOledPowerSaveEnabled(), carDisplayUsed));
+    // The phone panel is not the one being looked at when the car display drives navigation.
+    mRefreshRate.update(navigating && !carDisplayUsed, mLowPowerMode);
+  }
+
+  /**
+   * Navigation trades refresh rate for power, which is only tolerable while the display is not
+   * following a finger. Both ends of the gesture are reported, so that a long drag along the
+   * elevation profile stays at the full rate for as long as it lasts.
+   */
+  public void onInteractionStarted()
+  {
+    mRefreshRate.onInteractionStarted();
+  }
+
+  public void onInteractionEnded()
+  {
+    mRefreshRate.onInteractionEnded();
+  }
+
+  public boolean isLowPowerMode()
+  {
+    return mLowPowerMode;
+  }
+
+  private void setLowPowerMode(boolean enabled)
+  {
+    if (mLowPowerMode == enabled)
+    {
+      // The native Framework outlives activity recreation, so keep both sides synchronized even
+      // when this newly-created controller already has the desired Java default.
+      Framework.nativeSetLowPowerNavigationMode(enabled);
+      return;
+    }
+
+    mLowPowerMode = enabled;
+    Framework.nativeSetLowPowerNavigationMode(enabled);
+    mNavMenu.setLowPowerMode(enabled);
+    mElevationChart.setLowPowerMode(enabled);
+    mMapButtonsViewModel.setLowPowerMode(enabled);
+
+    if (enabled)
+    {
+      mStreetFrame.setBackgroundColor(Color.BLACK);
+      mNextTurnFrame.setBackgroundColor(Color.BLACK);
+      mNextNextTurnFrame.setBackgroundColor(Color.BLACK);
+      mNavBottomSheet.setBackgroundColor(Color.BLACK);
+      ViewCompat.setBackgroundTintList(mNavBottomSheet, ColorStateList.valueOf(Color.BLACK));
+      mNavigationBarBackground.setBackgroundColor(Color.BLACK);
+      mNextStreet.setTextColor(Color.WHITE);
+      mNextTurnDistance.setTextColor(Color.WHITE);
+      ImageViewCompat.setImageTintList(mNextTurnImage, ColorStateList.valueOf(Color.WHITE));
+      ImageViewCompat.setImageTintList(mNextNextTurnImage, ColorStateList.valueOf(Color.WHITE));
+      mLanesView.setLanes(null);
+      UiUtils.hide(mSpeedLimit);
+    }
+    else
+    {
+      mStreetFrame.setBackground(mDefaultStreetFrameBackground);
+      mNextTurnFrame.setBackground(mDefaultNextTurnFrameBackground);
+      mNextNextTurnFrame.setBackground(mDefaultNextNextTurnFrameBackground);
+      mNavBottomSheet.setBackground(mDefaultNavBottomSheetBackground);
+      ViewCompat.setBackgroundTintList(mNavBottomSheet, mDefaultNavBottomSheetBackgroundTint);
+      mNavigationBarBackground.setBackground(mDefaultNavigationBarBackground);
+      mNextStreet.setTextColor(mDefaultNextStreetTextColors);
+      mNextTurnDistance.setTextColor(mDefaultNextTurnTextColors);
+      ImageViewCompat.setImageTintList(mNextTurnImage, mDefaultNextTurnImageTint);
+      ImageViewCompat.setImageTintList(mNextNextTurnImage, mDefaultNextNextTurnImageTint);
+    }
+
+    final RoutingInfo info = RoutingController.get().getCachedRoutingInfo();
+    if (info != null)
+      update(info);
+    refreshElevationData();
+    updateVisibleViewport();
+  }
+
+  /**
+   * How much of the bottom of the screen the visible viewport reported to the map already leaves
+   * out, so that the same UI is not counted a second time as an offset from the bottom.
+   */
+  public int getViewportBottomInset()
+  {
+    return mVisibleViewportBottomInset;
+  }
+
+  /**
+   * Tells the map which part of the screen the navigation UI leaves free, so that my position and
+   * a camera move stay where they can actually be seen. Only done while the elevation profile is
+   * shown: it is what makes the bottom sheet tall enough for the difference to matter, and the
+   * viewport is shared with the place page, which sets it for its own purposes.
+   */
+  private void updateVisibleViewport()
+  {
+    final int width = mFrame.getWidth();
+    final int height = mFrame.getHeight();
+    if (width == 0 || height == 0 || MwmApplication.from(mFrame.getContext()).getDisplayManager().isCarDisplayUsed())
+      return;
+
+    final boolean narrow = mElevationChart.isShown() && UiUtils.isVisible(mFrame);
+    if (!narrow && !mVisibleViewportNarrowed)
+      return;
+
+    // In landscape the bottom sheet is a column down the left instead, so it is width that it takes
+    // from the map.
+    final boolean portrait = mFrame.getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT;
+    final int bottomInset =
+        narrow && portrait ? mNavBottomSheetLineFrame.getHeight() + mNavigationBarBackground.getHeight() : 0;
+
+    if (narrow)
+    {
+      // Neither frame's own bounds say where the free part of the screen is: the top frame covers
+      // the whole screen with only its widgets drawn on it, and the bottom sheet is moved into
+      // place by its behaviour after it has been laid out.
+      Framework.nativeSetVisibleRect(portrait ? 0 : mNavBottomSheet.getWidth(), computeNavContentHeight(), width,
+                                     height - bottomInset);
+    }
+    else
+      Framework.nativeSetVisibleRect(0, 0, width, height);
+
+    if (mVisibleViewportNarrowed == narrow && mVisibleViewportBottomInset == bottomInset)
+      return;
+
+    mVisibleViewportNarrowed = narrow;
+    mVisibleViewportBottomInset = bottomInset;
+    mOnMenuSizeChangedListener.OnMenuSizeChange();
   }
 
   private void updateStreetView(@NonNull RoutingInfo info)
@@ -186,8 +400,13 @@ public class NavigationController implements TrafficManager.TrafficCallback, Nav
     // https://github.com/organicmaps/organicmaps/issues/3732
     UiUtils.visibleIf(hasStreet, mStreetFrame);
     if (!TextUtils.isEmpty(info.nextStreet))
-      mNextStreet.setText(RoadShieldUtils.createStreetTextWithShields(info.nextStreet, info.nextStreetRoadShields,
-                                                                      mNextStreet.getTextSize()));
+    {
+      if (mLowPowerMode)
+        mNextStreet.setText(info.nextStreet);
+      else
+        mNextStreet.setText(RoadShieldUtils.createStreetTextWithShields(info.nextStreet, info.nextStreetRoadShields,
+                                                                        mNextStreet.getTextSize()));
+    }
     int margin = dimen(mFrame.getContext(), R.dimen.nav_frame_padding);
     if (hasStreet)
       margin += mStreetFrame.getHeight();
@@ -196,15 +415,29 @@ public class NavigationController implements TrafficManager.TrafficCallback, Nav
 
   public void show(boolean show)
   {
+    refreshLowPowerMode();
+    if (!show)
+      mRefreshRate.update(false /* navigating */, mLowPowerMode);
+
     if (show && !UiUtils.isVisible(mFrame))
     {
       collapseNavMenu();
       // Seed the panel from the already-built route so it isn't empty until the first GPS fix arrives.
+      refreshElevationData();
       update(RoutingController.get().getCachedRoutingInfo());
     }
     UiUtils.showIf(show, mFrame);
     if (!show)
+    {
+      mElevationChart.setData(null);
       mMapButtonsViewModel.setTopHeaderHeight(0);
+      updateVisibleViewport();
+    }
+  }
+
+  public boolean handleBackPress()
+  {
+    return mElevationChart.handleBackPress();
   }
 
   public boolean isNavMenuCollapsed()
@@ -224,6 +457,8 @@ public class NavigationController implements TrafficManager.TrafficCallback, Nav
 
   public void refresh()
   {
+    refreshLowPowerMode();
+    refreshElevationData();
     mNavMenu.refreshTts();
   }
 

@@ -59,6 +59,11 @@ public class PlacePageButtonFactory
         titleId = R.string.placepage_add_stop;
         yield R.drawable.ic_route_via;
       }
+      case TRACK_DETOUR ->
+      {
+        titleId = R.string.track_detour;
+        yield R.drawable.ic_route_via;
+      }
       case ROUTE_REPLACE ->
       {
         titleId = R.string.placepage_replace_stop;

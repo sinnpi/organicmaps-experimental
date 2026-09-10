@@ -41,6 +41,7 @@ public:
   TileKey const & GetTileKey() const { return m_tileKey; }
 
   virtual void UpdateAnimation();
+  void SetOpacity(float opacity) { m_params.m_opacity = opacity; }
   virtual void Render(ref_ptr<dp::GraphicsContext> context, ref_ptr<gpu::ProgramManager> mng, ScreenBase const & screen,
                       FrameValues const & frameValues, ref_ptr<DebugRectRenderer> debugRectRenderer) = 0;
 

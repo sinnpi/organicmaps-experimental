@@ -104,6 +104,9 @@ std::string_view DebugPrint(Message::Type msgType)
   case Message::Type::HideRouteTransit: return "HideRouteTransit";
   case Message::Type::SetTransitSchemeMinZoom: return "SetTransitSchemeMinZoom";
   case Message::Type::ShowDebugInfo: return "ShowDebugInfo";
+  case Message::Type::SetFollowingModeFrameRate: return "SetFollowingModeFrameRate";
+  case Message::Type::SetNavigationDeadband: return "SetNavigationDeadband";
+  case Message::Type::SetLowPowerNavigationMode: return "SetLowPowerNavigationMode";
   case Message::Type::NotifyRenderThread: return "NotifyRenderThread";
   case Message::Type::NotifyGraphicsReady: return "NotifyGraphicsReady";
   case Message::Type::EnableIsolines: return "EnableIsolines";

@@ -403,7 +403,7 @@ final class RoutingBottomMenuController
   {
     hideAltitudeChartAndRoutingDetails();
     final RouteAltitudeData data = Framework.nativeGetRouteAltitudeData();
-    if (data == null || data.getSize() == 0)
+    if (data == null || data.getSize() < 2)
     {
       mRouteElevationChartController.clearSelection();
       Framework.nativeRouteRemoveElevationActivePoint();

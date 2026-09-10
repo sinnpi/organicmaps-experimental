@@ -17,8 +17,9 @@ enum class Direction
 };
 
 // The centerline of the corridor an OSM route along an imported track is biased toward. The first
-// point is the closest projection of |currentPosition| onto the selected track line and the last
-// point is the end of that line in the requested direction. It follows the track closely enough for
+// point is normally the closest projection of |currentPosition| onto the selected track line and the
+// last point is the end of that line in the requested direction. Near a loop's shared start/finish,
+// the whole line is kept in that direction instead. It follows the track closely enough for
 // the corridor to tell the roads the track runs along from the ones it deliberately avoids, so its
 // length is set by the shape of the track rather than by a point budget.
 struct Plan
@@ -39,8 +40,20 @@ std::optional<Plan> MakePlan(kml::MultiGeometry const & geometry, m2::PointD con
 std::optional<Plan> MakePlanTo(kml::MultiGeometry const & geometry, m2::PointD const & currentPosition,
                                m2::PointD const & destination);
 
-// The point half way along |centerline| by distance travelled. Its points sit where the track
-// changes shape rather than at a fixed spacing, so the middle of the vector is not the middle of
-// the track.
-m2::PointD PointAtHalfLength(std::vector<m2::PointD> const & centerline);
+// Remaining track on the current ordered leg and all later legs. Projection is restricted to that
+// leg so a nearby later visit to the same road cannot discard an unvisited loop.
+std::vector<m2::PointD> GetRemainingCenterline(std::vector<m2::PointD> const & centerline, size_t legIndex,
+                                               m2::PointD const & position);
+
+// Choose a rejoin point ahead, within the first remaining leg. Returns empty at the track's end.
+std::vector<m2::PointD> MakeDetourCenterline(std::vector<m2::PointD> const & remaining, m2::PointD const & stop);
+
+// Route from |currentPosition| to the selected track's end, with ordered internal checkpoints
+// separating repeated visits to the same road. See routing::GetTrackLegIndices.
+std::vector<m2::PointD> MakeCheckpoints(std::vector<m2::PointD> const & centerline, m2::PointD const & currentPosition);
+
+// Prefix a normal approach to the rejoin point, optionally via an unvisited stop. The extra one or
+// two legs are routed without a corridor; the remaining legs follow |centerline| as usual.
+std::vector<m2::PointD> MakeDetourCheckpoints(std::vector<m2::PointD> const & centerline,
+                                              m2::PointD const & currentPosition, std::optional<m2::PointD> stop);
 }  // namespace track_following

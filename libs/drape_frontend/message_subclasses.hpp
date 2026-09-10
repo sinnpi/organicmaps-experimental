@@ -1421,6 +1421,42 @@ private:
   bool const m_shown;
 };
 
+class SetFollowingModeFrameRateMessage : public Message
+{
+public:
+  explicit SetFollowingModeFrameRateMessage(uint32_t fps) : m_fps(fps) {}
+
+  Type GetType() const override { return Type::SetFollowingModeFrameRate; }
+  uint32_t GetFps() const { return m_fps; }
+
+private:
+  uint32_t const m_fps;
+};
+
+class SetNavigationDeadbandMessage : public Message
+{
+public:
+  explicit SetNavigationDeadbandMessage(double thresholdPx) : m_thresholdPx(thresholdPx) {}
+
+  Type GetType() const override { return Type::SetNavigationDeadband; }
+  double GetThresholdPx() const { return m_thresholdPx; }
+
+private:
+  double const m_thresholdPx;
+};
+
+class SetLowPowerNavigationModeMessage : public Message
+{
+public:
+  explicit SetLowPowerNavigationModeMessage(bool enabled) : m_enabled(enabled) {}
+
+  Type GetType() const override { return Type::SetLowPowerNavigationMode; }
+  bool IsEnabled() const { return m_enabled; }
+
+private:
+  bool const m_enabled;
+};
+
 class NotifyRenderThreadMessage : public Message
 {
 public:

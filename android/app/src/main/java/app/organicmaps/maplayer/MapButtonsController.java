@@ -3,7 +3,9 @@ package app.organicmaps.maplayer;
 import android.animation.ArgbEvaluator;
 import android.animation.ObjectAnimator;
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.content.res.Configuration;
+import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -12,11 +14,15 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
+import androidx.annotation.DimenRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.OptIn;
+import androidx.appcompat.content.res.AppCompatResources;
+import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.core.widget.ImageViewCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.lifecycle.Observer;
@@ -44,7 +50,9 @@ import com.google.android.material.badge.BadgeDrawable;
 import com.google.android.material.badge.BadgeUtils;
 import com.google.android.material.badge.ExperimentalBadgeUtils;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class MapButtonsController extends Fragment
@@ -67,6 +75,25 @@ public class MapButtonsController extends Fragment
   private ObjectAnimator mBlinkingAnimator;
   private float mContentHeight;
   private float mContentWidth;
+  private boolean mIsNavigationLayout;
+  private boolean mLowPowerMode;
+  private float mButtonsScale;
+  @NonNull
+  private MapButtonAppearance[] mButtonAppearances = new MapButtonAppearance[0];
+  @NonNull
+  private MapButtonAppearance[] mSearchWheelAppearances = new MapButtonAppearance[0];
+  @NonNull
+  private MapButtonAppearance[] mBottomButtonAppearances = new MapButtonAppearance[0];
+  @Nullable
+  private ConstraintLayout mBottomButtonsRow;
+  private int mDefaultBottomRowMaxWidth;
+  private int mDefaultLeftButtonsBottomMargin;
+  private int mDefaultRightButtonsBottomMargin;
+  @Nullable
+  private View mNavigationHeader;
+
+  private final View.OnLayoutChangeListener mNavigationHeaderLayoutListener =
+      (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> updateNavigationButtonsBottomMargin();
 
   private MapButtonClickListener mMapButtonClickListener;
   private PlacePageViewModel mPlacePageViewModel;
@@ -87,6 +114,7 @@ public class MapButtonsController extends Fragment
     showButton(enable, MapButtons.trackRecordingStatus);
   };
   private final Observer<Integer> mTopButtonMarginObserver = this::updateTopButtonsMargin;
+  private final Observer<Boolean> mLowPowerModeObserver = this::setLowPowerMode;
 
   @Nullable
   @Override
@@ -99,7 +127,8 @@ public class MapButtonsController extends Fragment
     mPlacePageViewModel = new ViewModelProvider(activity).get(PlacePageViewModel.class);
     mMapButtonsViewModel = new ViewModelProvider(activity).get(MapButtonsViewModel.class);
     mSearchPageViewModel = new ViewModelProvider(activity).get(SearchPageViewModel.class);
-    if (mMapButtonsViewModel.getLayoutMode().getValue() == LayoutMode.navigation)
+    mIsNavigationLayout = mMapButtonsViewModel.getLayoutMode().getValue() == LayoutMode.navigation;
+    if (mIsNavigationLayout)
       mFrame = inflater.inflate(R.layout.map_buttons_layout_navigation, container, false);
     else
       mFrame = inflater.inflate(R.layout.map_buttons_layout_regular, container, false);
@@ -107,16 +136,32 @@ public class MapButtonsController extends Fragment
     mInnerLeftButtonsFrame = mFrame.findViewById(R.id.map_buttons_inner_left);
     mInnerRightButtonsFrame = mFrame.findViewById(R.id.map_buttons_inner_right);
     mBottomButtonsFrame = mFrame.findViewById(R.id.map_buttons_bottom);
+    if (mIsNavigationLayout)
+    {
+      if (mInnerLeftButtonsFrame != null)
+        mDefaultLeftButtonsBottomMargin = getBottomMargin(mInnerLeftButtonsFrame);
+      if (mInnerRightButtonsFrame != null)
+        mDefaultRightButtonsBottomMargin = getBottomMargin(mInnerRightButtonsFrame);
+
+      mNavigationHeader = activity.findViewById(R.id.line_frame);
+      if (mNavigationHeader != null)
+      {
+        mNavigationHeader.addOnLayoutChangeListener(mNavigationHeaderLayoutListener);
+        mNavigationHeader.post(this::updateNavigationButtonsBottomMargin);
+      }
+    }
 
     final FloatingActionButton helpButton = mFrame.findViewById(R.id.help_button);
     final View zoomFrame = mFrame.findViewById(R.id.zoom_buttons_container);
-    mFrame.findViewById(R.id.nav_zoom_in)
-        .setOnClickListener((v) -> mMapButtonClickListener.onMapButtonClick(MapButtons.zoomIn));
-    mFrame.findViewById(R.id.nav_zoom_out)
-        .setOnClickListener((v) -> mMapButtonClickListener.onMapButtonClick(MapButtons.zoomOut));
-    final View bookmarksButton = mFrame.findViewById(R.id.btn_bookmarks);
+    final FloatingActionButton oledPowerSave = mFrame.findViewById(R.id.oled_power_save);
+    oledPowerSave.setOnClickListener((v) -> mMapButtonClickListener.onMapButtonClick(MapButtons.oledPowerSave));
+    final FloatingActionButton zoomIn = mFrame.findViewById(R.id.nav_zoom_in);
+    zoomIn.setOnClickListener((v) -> mMapButtonClickListener.onMapButtonClick(MapButtons.zoomIn));
+    final FloatingActionButton zoomOut = mFrame.findViewById(R.id.nav_zoom_out);
+    zoomOut.setOnClickListener((v) -> mMapButtonClickListener.onMapButtonClick(MapButtons.zoomOut));
+    final FloatingActionButton bookmarksButton = mFrame.findViewById(R.id.btn_bookmarks);
     bookmarksButton.setOnClickListener((v) -> mMapButtonClickListener.onMapButtonClick(MapButtons.bookmarks));
-    final View myPosition = mFrame.findViewById(R.id.my_position);
+    final FloatingActionButton myPosition = mFrame.findViewById(R.id.my_position);
     mNavMyPosition =
         new MyPositionButton(myPosition, (v) -> mMapButtonClickListener.onMapButtonClick(MapButtons.myPosition));
 
@@ -156,7 +201,7 @@ public class MapButtonsController extends Fragment
                         (v)
                             -> mMapButtonClickListener.onMapButtonClick(MapButtons.search),
                         (v) -> mMapButtonClickListener.onSearchCanceled(), mMapButtonsViewModel, mSearchPageViewModel);
-    final View searchButton = mFrame.findViewById(R.id.btn_search);
+    final FloatingActionButton searchButton = mFrame.findViewById(R.id.btn_search);
 
     // Used to get the maximum height the buttons will evolve in
     mFrame.addOnLayoutChangeListener(new MapButtonsController.ContentViewLayoutChangeListener(mFrame));
@@ -176,6 +221,47 @@ public class MapButtonsController extends Fragment
     if (mTrackRecordingStatusButton != null)
       mButtonsMap.put(MapButtons.trackRecordingStatus, mTrackRecordingStatusButton);
     showButton(false, MapButtons.trackRecordingStatus);
+
+    // Buttons that follow the user's size preference and the OLED power save styling.
+    final List<MapButtonAppearance> appearances = new ArrayList<>();
+    appearances.add(new MapButtonAppearance(oledPowerSave, R.dimen.map_button_icon_size));
+    appearances.add(new MapButtonAppearance(zoomIn, R.dimen.map_button_zoom_icon_size));
+    appearances.add(new MapButtonAppearance(zoomOut, R.dimen.map_button_zoom_icon_size));
+    appearances.add(new MapButtonAppearance(myPosition, R.dimen.map_button_icon_size));
+    if (mToggleMapLayerButton != null)
+      appearances.add(new MapButtonAppearance(mToggleMapLayerButton, R.dimen.map_button_icon_size));
+    if (mTrackRecordingStatusButton != null)
+      appearances.add(new MapButtonAppearance(mTrackRecordingStatusButton, R.dimen.map_button_icon_size));
+    if (mIsNavigationLayout)
+    {
+      appearances.add(new MapButtonAppearance(searchButton, R.dimen.map_button_icon_size));
+      appearances.add(new MapButtonAppearance(bookmarksButton, R.dimen.map_button_icon_size));
+
+      // The wheel is scaled as a whole by SearchWheel, its buttons only take the power save styling.
+      final List<MapButtonAppearance> searchWheel = new ArrayList<>();
+      for (int slot : SearchWheel.SLOT_IDS)
+        searchWheel.add(new MapButtonAppearance(mFrame.findViewById(slot), R.dimen.map_button_icon_size));
+      mSearchWheelAppearances = searchWheel.toArray(new MapButtonAppearance[0]);
+    }
+    mButtonAppearances = appearances.toArray(new MapButtonAppearance[0]);
+
+    // The bottom bar buttons stand in a row of their own and are scaled with it, see below. In
+    // landscape that row is the bottom frame itself, in portrait it is wrapped in one.
+    final View bottomRowView = mFrame.findViewById(R.id.map_buttons_bottom_row);
+    if (bottomRowView instanceof ConstraintLayout row)
+      mBottomButtonsRow = row;
+    else if (mBottomButtonsFrame instanceof ConstraintLayout row)
+      mBottomButtonsRow = row;
+    if (mBottomButtonsRow != null)
+    {
+      mDefaultBottomRowMaxWidth = getResources().getDimensionPixelSize(R.dimen.map_buttons_bottom_max_width);
+      final List<MapButtonAppearance> bottomRow = new ArrayList<>();
+      for (View button : new View[] {helpButton, searchButton, bookmarksButton, menuButton})
+        if (button != null)
+          bottomRow.add(new MapButtonAppearance((FloatingActionButton) button, R.dimen.map_button_icon_size));
+      mBottomButtonAppearances = bottomRow.toArray(new MapButtonAppearance[0]);
+    }
+    updateButtonsScale();
     return mFrame;
   }
   // For disabling bottom buttons which are visible in tablets
@@ -193,7 +279,11 @@ public class MapButtonsController extends Fragment
       return;
     switch (button)
     {
-    case zoom: UiUtils.showIf(show && Config.showZoomButtons(), buttonView); break;
+    case zoom:
+      UiUtils.showIf(show, buttonView);
+      UiUtils.showIf(Config.showZoomButtons(), mFrame.findViewById(R.id.nav_zoom_in),
+                     mFrame.findViewById(R.id.nav_zoom_out));
+      break;
     case toggleMapLayer:
       if (mToggleMapLayerButton != null)
         UiUtils.showIf(show && !isInNavigationMode(), mToggleMapLayerButton);
@@ -233,6 +323,36 @@ public class MapButtonsController extends Fragment
   private static int dpToPx(float dp, Context context)
   {
     return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp, context.getResources().getDisplayMetrics());
+  }
+
+  private static int getBottomMargin(@NonNull View view)
+  {
+    return ((ViewGroup.MarginLayoutParams) view.getLayoutParams()).bottomMargin;
+  }
+
+  private void updateNavigationButtonsBottomMargin()
+  {
+    if (!mIsNavigationLayout || mNavigationHeader == null || mNavigationHeader.getHeight() == 0)
+      return;
+
+    final int baseHeaderHeight = getResources().getDimensionPixelSize(R.dimen.nav_menu_height);
+    final int extraHeight = Math.max(0, mNavigationHeader.getHeight() - baseHeaderHeight);
+    if (mInnerLeftButtonsFrame != null)
+      updateBottomMargin(mInnerLeftButtonsFrame, mDefaultLeftButtonsBottomMargin, extraHeight);
+    if (mInnerRightButtonsFrame != null)
+      updateBottomMargin(mInnerRightButtonsFrame, mDefaultRightButtonsBottomMargin, extraHeight);
+  }
+
+  private static void updateBottomMargin(@NonNull View frame, int defaultMargin, int extraHeight)
+  {
+    // A zero margin in landscape means that side is outside the fixed-width bottom sheet.
+    final int margin = defaultMargin == 0 ? 0 : defaultMargin + extraHeight;
+    final ViewGroup.MarginLayoutParams params = (ViewGroup.MarginLayoutParams) frame.getLayoutParams();
+    if (params.bottomMargin == margin)
+      return;
+
+    params.bottomMargin = margin;
+    frame.setLayoutParams(params);
   }
 
   private void updateTopButtonsMargin(int margin)
@@ -443,6 +563,67 @@ public class MapButtonsController extends Fragment
       mNavMyPosition.update(newMode);
   }
 
+  /**
+   * In the OLED power save mode the map is black, so the buttons drop their filled circle for a
+   * dotted white outline and a white icon: only those few pixels are lit.
+   */
+  private void setLowPowerMode(boolean enabled)
+  {
+    if (mLowPowerMode == enabled)
+      return;
+
+    mLowPowerMode = enabled;
+    mFrame.findViewById(R.id.oled_power_save).setSelected(enabled);
+    for (MapButtonAppearance appearance : mButtonAppearances)
+      appearance.setLowPowerMode(enabled);
+    for (MapButtonAppearance appearance : mSearchWheelAppearances)
+      appearance.setLowPowerMode(enabled);
+    for (MapButtonAppearance appearance : mBottomButtonAppearances)
+      appearance.setLowPowerMode(enabled);
+    mSearchWheel.setLowPowerMode(enabled);
+    if (mNavMyPosition != null)
+      mNavMyPosition.setLowPowerMode(enabled);
+  }
+
+  /** Resizes the map buttons to the size the user picked in the settings. */
+  private void updateButtonsScale()
+  {
+    final float scale = Config.getMapButtonsScale() / 100f;
+    if (mButtonsScale == scale)
+      return;
+
+    mButtonsScale = scale;
+    for (MapButtonAppearance appearance : mButtonAppearances)
+      appearance.setScale(scale);
+    mSearchWheel.setScale(scale);
+    if (mNavMyPosition != null)
+      mNavMyPosition.setScale(scale);
+    updateBottomButtonsScale(scale);
+  }
+
+  /**
+   * The bottom bar buttons stand side by side in a row that is only as wide as it is allowed to be,
+   * so they grow together with that limit and only until the row fills the screen.
+   */
+  private void updateBottomButtonsScale(float scale)
+  {
+    if (mBottomButtonsRow == null || mBottomButtonAppearances.length == 0)
+      return;
+
+    // The row keeps a gap on both sides of every button, whatever the buttons themselves measure.
+    final int gaps = getResources().getDimensionPixelSize(R.dimen.margin_half) * (mBottomButtonAppearances.length + 1)
+                   + mBottomButtonsRow.getPaddingStart() + mBottomButtonsRow.getPaddingEnd();
+    int buttonsWidth = 0;
+    for (MapButtonAppearance appearance : mBottomButtonAppearances)
+      buttonsWidth += appearance.getDefaultSize();
+
+    final int screenWidth = getResources().getDisplayMetrics().widthPixels;
+    final float rowScale = Math.min(scale, (float) (screenWidth - gaps) / buttonsWidth);
+    for (MapButtonAppearance appearance : mBottomButtonAppearances)
+      appearance.setScale(rowScale);
+    mBottomButtonsRow.setMaxWidth(Math.round(mDefaultBottomRowMaxWidth * rowScale));
+  }
+
   private int getViewTopOffset(float translation, View v)
   {
     return (int) (translation + v.getTop());
@@ -463,11 +644,13 @@ public class MapButtonsController extends Fragment
     mMapButtonsViewModel.getSearchOption().observe(viewLifecycleOwner, mSearchOptionObserver);
     mMapButtonsViewModel.getTrackRecorderState().observe(viewLifecycleOwner, mTrackRecorderObserver);
     mMapButtonsViewModel.getTopButtonsMarginTop().observe(viewLifecycleOwner, mTopButtonMarginObserver);
+    mMapButtonsViewModel.getLowPowerMode().observe(viewLifecycleOwner, mLowPowerModeObserver);
   }
 
   public void onResume()
   {
     super.onResume();
+    updateButtonsScale();
     if (mMapButtonsViewModel.getLayoutMode().getValue() == LayoutMode.navigation)
       mSearchWheel.onResume();
     updateMenuBadge();
@@ -486,6 +669,17 @@ public class MapButtonsController extends Fragment
   {
     ViewCompat.setOnApplyWindowInsetsListener(mFrame, null);
     super.onPause();
+  }
+
+  @Override
+  public void onDestroyView()
+  {
+    if (mNavigationHeader != null)
+    {
+      mNavigationHeader.removeOnLayoutChangeListener(mNavigationHeaderLayoutListener);
+      mNavigationHeader = null;
+    }
+    super.onDestroyView();
   }
 
   @Override
@@ -516,6 +710,7 @@ public class MapButtonsController extends Fragment
   {
     myPosition,
     toggleMapLayer,
+    oledPowerSave,
     zoomIn,
     zoomOut,
     zoom,
@@ -531,6 +726,62 @@ public class MapButtonsController extends Fragment
     void onMapButtonClick(MapButtons button);
 
     void onSearchCanceled();
+  }
+
+  /** One map button: the size the user picked and the OLED power save styling are applied here. */
+  private static final class MapButtonAppearance
+  {
+    @NonNull
+    private final FloatingActionButton mButton;
+    @Nullable
+    private final ColorStateList mDefaultIconTint;
+    private final int mDefaultSize;
+    private final int mDefaultIconSize;
+    private boolean mLowPowerMode;
+
+    MapButtonAppearance(@NonNull FloatingActionButton button, @DimenRes int iconSize)
+    {
+      mButton = button;
+      mDefaultIconTint = ImageViewCompat.getImageTintList(button);
+      mDefaultSize = button.getCustomSize();
+      mDefaultIconSize = button.getResources().getDimensionPixelSize(iconSize);
+    }
+
+    int getDefaultSize()
+    {
+      return mDefaultSize;
+    }
+
+    void setScale(float scale)
+    {
+      mButton.setCustomSize(Math.round(mDefaultSize * scale));
+      mButton.setMaxImageSize(Math.round(mDefaultIconSize * scale));
+      updateOutline();
+    }
+
+    void setLowPowerMode(boolean enabled)
+    {
+      mLowPowerMode = enabled;
+      // The filled circle is the button's content background, faded out here. Tinting it is not an
+      // option: the drawable becomes the view background only on the first layout pass, and the
+      // style's android:backgroundTint is re-applied over any tint of ours at that point. A custom
+      // background is not supported by FloatingActionButton either, hence the outline in the overlay.
+      mButton.getContentBackground().setAlpha(enabled ? 0 : 255);
+      ImageViewCompat.setImageTintList(mButton, enabled ? ColorStateList.valueOf(Color.WHITE) : mDefaultIconTint);
+      updateOutline();
+    }
+
+    private void updateOutline()
+    {
+      mButton.getOverlay().clear();
+      if (!mLowPowerMode)
+        return;
+
+      final Drawable outline = AppCompatResources.getDrawable(mButton.getContext(), R.drawable.bg_map_button_low_power);
+      final int size = mButton.getCustomSize();
+      outline.setBounds(0, 0, size, size);
+      mButton.getOverlay().add(outline);
+    }
   }
 
   private class ContentViewLayoutChangeListener implements View.OnLayoutChangeListener

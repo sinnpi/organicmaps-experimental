@@ -23,7 +23,7 @@
   </style>
 
   <style name="MwmWidget.MapButton.Zoom">
-    <item name="maxImageSize">34dp</item>
+    <item name="maxImageSize">@dimen/map_button_zoom_icon_size</item>
   </style>
 
   <style name="MwmWidget.MapButton.Search">

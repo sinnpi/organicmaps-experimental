@@ -27,6 +27,7 @@ set(SRC
   small_routes.cpp
   speed_camera_notifications_tests.cpp
   street_names_test.cpp
+  track_following_tests.cpp
   transit_route_test.cpp
   turn_test.cpp
 )

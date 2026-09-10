@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Outline of a map button in the OLED power save mode: a dotted ring instead of a filled circle. -->
+<shape
+  xmlns:android="http://schemas.android.com/apk/res/android"
+  android:shape="oval">
+  <stroke
+    android:width="2dp"
+    android:color="@android:color/white"
+    android:dashWidth="4dp"
+    android:dashGap="3dp" />
+</shape>

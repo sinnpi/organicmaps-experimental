@@ -462,6 +462,39 @@ public class RoutingController
     resetPoiPickState();
   }
 
+  public boolean canAddTrackDetour()
+  {
+    return isNavigating() && Framework.nativeCanAddTrackDetour();
+  }
+
+  public boolean addTrackDetour(@NonNull MapObject point)
+  {
+    if (!canAddTrackDetour())
+      return false;
+    final Pair<String, String> description = getDescriptionForPoint(point);
+    if (!Framework.nativeAddTrackDetour(description.first, description.second, point.getLat(), point.getLon()))
+      return false;
+
+    resetPoiPickState();
+    rebuildTrackPlan();
+    if (mContainer != null)
+      mContainer.onAddedStop();
+    return true;
+  }
+
+  // Keep the native track state; cancel()/prepare() would discard it. Build exactly once.
+  private void rebuildTrackPlan()
+  {
+    final boolean wasNavigating = isNavigating();
+    setState(State.PREPARE);
+    if (wasNavigating)
+      cancelNavigation(false);
+    startPlanning();
+    if (wasNavigating && mContainer != null)
+      mContainer.onResetToPlanningState();
+    build();
+  }
+
   public void removeStop(@NonNull MapObject mapObject)
   {
     RoutePointInfo info = mapObject.getRoutePointInfo();
@@ -470,10 +503,15 @@ public class RoutingController
 
     applyRemovingIntermediatePointsTransaction();
     Framework.nativeRemoveRoutePoint(info.mMarkType, info.mIntermediateIndex);
-    build();
+    if (isTrackFollowMode())
+      rebuildTrackPlan();
+    else
+    {
+      build();
+      resetToPlanningStateIfNavigating();
+    }
     if (mContainer != null)
       mContainer.onRemovedStop();
-    resetToPlanningStateIfNavigating();
   }
 
   public void launchPlanning()

@@ -466,6 +466,7 @@ public class PlacePageController
     case ROUTE_FROM -> onRouteFromBtnClicked();
     case ROUTE_TO -> onRouteToBtnClicked();
     case ROUTE_ADD -> onRouteAddBtnClicked();
+    case TRACK_DETOUR -> onTrackDetourBtnClicked();
     case ROUTE_REPLACE -> onRouteReplaceBtnClicked();
     case ROUTE_REMOVE -> onRouteRemoveBtnClicked();
     case ROUTE_AVOID_TOLL -> onAvoidTollBtnClicked();
@@ -639,6 +640,14 @@ public class PlacePageController
       RoutingController.get().addStop(mMapObject);
   }
 
+  private void onTrackDetourBtnClicked()
+  {
+    if (mMapObject == null)
+      return;
+    if (!RoutingController.get().addTrackDetour(mMapObject))
+      Toast.makeText(requireContext(), R.string.track_detour_unavailable, Toast.LENGTH_LONG).show();
+  }
+
   private void onRouteRemoveBtnClicked()
   {
     if (mMapObject != null)
@@ -746,6 +755,9 @@ public class PlacePageController
       {
         if (needToShowRoutingButtons)
           buttons.add(PlacePageButtons.ButtonType.ROUTE_FROM);
+
+        if (needToShowRoutingButtons && !mapObject.isTrack() && RoutingController.get().canAddTrackDetour())
+          buttons.add(PlacePageButtons.ButtonType.TRACK_DETOUR);
 
         // If we can show the add route button, put it in the place of the bookmark button
         // And move the bookmark button at the end

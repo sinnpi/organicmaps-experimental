@@ -182,7 +182,12 @@ bool PostprocessRenderer::IsEnabled() const
   // For Metal rendering to the texture is more efficient,
   // since nextDrawable will be requested later.
 
-  if (m_apiVersion != dp::ApiVersion::Metal && m_isRouteFollowingActive)
+  // Rendering to a texture costs an extra fullscreen composite per frame, which is why it is off
+  // while following. That trade flips once most frames can be skipped entirely: BeginFrame() only
+  // reuses the previous framebuffer when post-processing is on, so the navigation deadband has no
+  // effect without this. Which way the trade lands is a measurement, not a guess -- see
+  // docs/POWER_MEASUREMENT.md.
+  if (m_apiVersion != dp::ApiVersion::Metal && m_isRouteFollowingActive && !m_frameReuseWhileFollowingAllowed)
     return false;
 
   return IsSupported(m_mainFramebuffer);

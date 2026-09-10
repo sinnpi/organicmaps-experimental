@@ -19,6 +19,7 @@
 #include "routing/routing_options.hpp"
 #include "routing/single_vehicle_world_graph.hpp"
 #include "routing/speed_camera_prohibition.hpp"
+#include "routing/track_checkpoints.hpp"
 #include "routing/track_corridor_world_graph.hpp"
 #include "routing/traffic_stash.hpp"
 #include "routing/transit_world_graph.hpp"
@@ -442,7 +443,7 @@ RouterResultCode IndexRouter::CalculateRoute(Checkpoints const & checkpoints, m2
       // Track following. Neither adjust-to-previous nor the alternative route applies here: the first
       // works off the unbiased graph and would drift off the track, and there is only one sensible way
       // to follow a given track, so a second "alternative" would just be a worse match for it.
-      code = CalculateTrackFollowingRoute(m_trackCorridor, startPoint, finalPoint, delegate, route);
+      code = CalculateTrackFollowingRoute(m_trackCorridor, checkpoints, delegate, route);
       doCalculate = false;
     }
     else if (adjustToPrevRoute && m_lastRoute && m_lastFakeEdges && finalPoint == m_lastRoute->GetFinish())
@@ -1273,7 +1274,7 @@ RouterResultCode IndexRouter::AdjustRoute(Checkpoints const & checkpoints, m2::P
 }
 
 RouterResultCode IndexRouter::CalculateTrackFollowingRoute(std::vector<m2::PointD> const & centerline,
-                                                           m2::PointD const & start, m2::PointD const & finish,
+                                                           Checkpoints const & checkpoints,
                                                            RouterDelegate const & delegate, Route & route)
 {
   CHECK_GREATER_OR_EQUAL(centerline.size(), 2, ());
@@ -1301,17 +1302,12 @@ RouterResultCode IndexRouter::CalculateTrackFollowingRoute(std::vector<m2::Point
   // neighbourhood looks like a dead end, and it discovers that by walking GetEdgeList. Run through
   // the corridor graph, edges dropped by the hard bound would masquerade as dead ends and the best
   // start/finish edges would be discarded before the search even begins.
-  FakeEnding startEnding;
-  FakeEnding finishEnding;
-  bool startIsCodirectional = false;
   PointsOnEdgesSnapping snapping(*this, *baseGraph);
-  switch (
-      snapping.Snap(start, finish, m2::PointD::Zero() /* direction */, startEnding, finishEnding, startIsCodirectional))
-  {
-  case 1: return RouterResultCode::StartPointNotFound;
-  case 2: return RouterResultCode::EndPointNotFound;
-  }
-
+  auto const legIndices = GetTrackLegIndices(centerline);
+  // A detour prefixes an ordinary route to the rejoin point, optionally via a stop.
+  CHECK_GREATER_OR_EQUAL(checkpoints.GetPoints().size(), legIndices.size(), ());
+  size_t const approachLegs = checkpoints.GetPoints().size() - legIndices.size();
+  CHECK_LESS_OR_EQUAL(approachLegs, 2, ());
   TrackCorridorWorldGraph corridorGraph(*baseGraph, centerline);
 
   // NoLeaps, rather than the Joints mode pedestrians and bicycles normally get. Joints mode compresses
@@ -1323,39 +1319,75 @@ RouterResultCode IndexRouter::CalculateTrackFollowingRoute(std::vector<m2::Point
   // uncompressed search space small.
   corridorGraph.SetMode(WorldGraphMode::NoLeaps);
 
-  // The corridor's hard bound is widened and the search retried if it was too tight to find any
-  // path at all -- a single noisy/offset track point should not make the whole track unroutable.
-  RouterResultCode result = RouterResultCode::RouteNotFound;
-  for (double const radiusM : {500.0, 1500.0, 5000.0})
+  std::vector<Segment> segments;
+  std::vector<Route::SubrouteAttrs> subroutes;
+  PushPassedSubroutes(checkpoints, subroutes);
+  std::unique_ptr<IndexGraphStarter> starter;
+  auto progress = std::make_shared<AStarProgress>();
+
+  for (size_t i = checkpoints.GetPassedIdx(); i < checkpoints.GetNumSubroutes(); ++i)
   {
-    corridorGraph.SetMaxCorridorRadiusM(radiusM);
-
-    IndexGraphStarter starter(startEnding, finishEnding, 0 /* fakeNumerationStart */,
-                              false /* isStartSegmentStrictForward */, corridorGraph);
-
-    std::vector<Segment> segments;
-    auto progress = std::make_shared<AStarProgress>();
-    result = CalculateSubrouteNoLeapsMode(starter, delegate, progress, segments);
-    if (result == RouterResultCode::Cancelled || result == RouterResultCode::NoCurrentPosition)
-      return result;
-    if (result != RouterResultCode::NoError)
+    bool const isApproach = i < approachLegs;
+    m_estimator->SetStrategy(isApproach ? EdgeEstimator::Strategy::Normal : EdgeEstimator::Strategy::Shortest);
+    if (isApproach)
+      corridorGraph.ClearCorridor();
+    else
     {
-      // A failed attempt costs a full exhaustive search of the corridor, so widening is not free.
-      LOG(LWARNING, ("No track-following route within", radiusM, "m of the track, widening the corridor"));
-      continue;
+      // The same road may occur on multiple visits. Only this occurrence belongs to this leg.
+      auto const leg = i - approachLegs;
+      corridorGraph.SetCenterline({centerline.begin() + legIndices[leg], centerline.begin() + legIndices[leg + 1] + 1});
+    }
+    FakeEnding startEnding;
+    FakeEnding finishEnding;
+    bool startIsCodirectional = false;
+    switch (snapping.Snap(checkpoints.GetPoint(i), checkpoints.GetPoint(i + 1), m2::PointD::Zero() /* direction */,
+                          startEnding, finishEnding, startIsCodirectional))
+    {
+    case 1: return RouterResultCode::StartPointNotFound;
+    case 2:
+      return i + 1 == checkpoints.GetNumSubroutes() ? RouterResultCode::EndPointNotFound
+                                                    : RouterResultCode::IntermediatePointNotFound;
     }
 
-    IndexGraphStarter::CheckValidRoute(segments);
+    uint32_t const fakeNumerationStart = starter ? starter->GetNumFakeSegments() : 0;
+    IndexGraphStarter subrouteStarter(startEnding, finishEnding, fakeNumerationStart,
+                                      false /* isStartSegmentStrictForward */, corridorGraph);
+    std::vector<Segment> subroute;
+    RouterResultCode result = RouterResultCode::RouteNotFound;
+    // Widen only the failed leg, without discarding already routed checkpoints.
+    for (double const radiusM : {500.0, 1500.0, 5000.0})
+    {
+      corridorGraph.SetMaxCorridorRadiusM(radiusM);
+      subroute.clear();
+      result = CalculateSubrouteNoLeapsMode(subrouteStarter, delegate, progress, subroute);
+      if (isApproach || result == RouterResultCode::NoError || result == RouterResultCode::Cancelled ||
+          result == RouterResultCode::NoCurrentPosition)
+        break;
+      LOG(LWARNING, ("No track-following route within", radiusM, "m of the track, widening the corridor"));
+    }
+    if (result != RouterResultCode::NoError)
+      return result;
 
-    std::vector<Route::SubrouteAttrs> subroutes;
-    subroutes.emplace_back(starter.GetStartJunction().ToPointWithAltitude(),
-                           starter.GetFinishJunction().ToPointWithAltitude(), 0 /* beginSegmentIdx */, segments.size());
-    route.SetSubroutes(std::move(subroutes), 0 /* passedIdx */);
+    IndexGraphStarter::CheckValidRoute(subroute);
+    auto const beginSegmentIdx = segments.size();
+    segments.insert(segments.end(), subroute.begin(), subroute.end());
+    subroutes.emplace_back(subrouteStarter.GetStartJunction().ToPointWithAltitude(),
+                           subrouteStarter.GetFinishJunction().ToPointWithAltitude(), beginSegmentIdx, segments.size());
 
-    return RedressRoute(segments, delegate.GetCancellable(), starter, route);
+    // As in normal routing, keep the road chosen on arrival when leaving an internal checkpoint.
+    Segment nextSegment;
+    CHECK(GetLastRealOrPart(subrouteStarter, subroute, nextSegment), ());
+    snapping.SetNextStartSegment(nextSegment);
+    if (!starter)
+      starter = std::make_unique<IndexGraphStarter>(std::move(subrouteStarter));
+    else
+      starter->Append(FakeEdgesContainer(std::move(subrouteStarter)));
   }
 
-  return result;
+  route.SetSubroutes(std::move(subroutes), checkpoints.GetPassedIdx());
+  IndexGraphStarter::CheckValidRoute(segments);
+  corridorGraph.ClearCorridor();
+  return RedressRoute(segments, delegate.GetCancellable(), *starter, route);
 }
 
 std::unique_ptr<WorldGraph> IndexRouter::MakeWorldGraph()

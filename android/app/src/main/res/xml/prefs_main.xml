@@ -56,18 +56,29 @@
       app:singleLineTitle="false"
       android:defaultValue="false"
       android:order="6" />
+    <SeekBarPreference
+      android:key="@string/pref_map_buttons_scale"
+      android:title="@string/pref_map_buttons_scale_title"
+      app:singleLineTitle="false"
+      android:summary="@string/pref_map_buttons_scale_summary"
+      android:defaultValue="100"
+      android:max="200"
+      app:min="50"
+      app:seekBarIncrement="10"
+      app:showSeekBarValue="true"
+      android:order="7" />
     <SwitchPreferenceCompat
       android:key="@string/pref_transliteration"
       android:title="@string/transliteration_title"
       app:singleLineTitle="false"
       android:defaultValue="false"
-      android:order="7" />
+      android:order="8" />
     <Preference
       android:key="@string/pref_storage"
       android:title="@string/maps_storage"
       app:singleLineTitle="false"
       android:summary="@string/maps_storage_summary"
-      android:order="8" />
+      android:order="9" />
     <SwitchPreferenceCompat
       android:key="@string/pref_enable_logging"
       android:title="@string/enable_logging"
@@ -160,16 +171,9 @@
       android:persistent="false"
       android:order="4">
     </Preference>
-    <SwitchPreferenceCompat
-      android:key="@string/pref_track_follow"
-      android:title="@string/enable_track_following"
-      android:summary="@string/enable_track_following_summary"
-      app:singleLineTitle="false"
-      android:defaultValue="false"
-      android:order="5" />
     <PreferenceScreen
       android:key="@string/prefs_routing"
-      android:order="6"
+      android:order="5"
       android:title="@string/driving_options_title">
       <intent
         android:targetClass="app.organicmaps.settings.DrivingOptionsActivity"
@@ -177,6 +181,32 @@
         <extra android:name="from" android:value="settings" />
       </intent>
     </PreferenceScreen>
+  </androidx.preference.PreferenceCategory>
+
+  <androidx.preference.PreferenceCategory
+    android:key="@string/pref_experimental"
+    android:title="@string/prefs_group_experimental"
+    android:order="4">
+    <SwitchPreferenceCompat
+      android:key="@string/pref_track_follow"
+      android:title="@string/enable_track_following"
+      android:summary="@string/enable_track_following_summary"
+      app:singleLineTitle="false"
+      android:defaultValue="false"
+      android:order="1" />
+    <SwitchPreferenceCompat
+      android:key="@string/pref_nav_elevation_profile"
+      android:title="@string/enable_nav_elevation_profile"
+      android:summary="@string/enable_nav_elevation_profile_summary"
+      app:singleLineTitle="false"
+      android:defaultValue="false"
+      android:order="2" />
+    <Preference
+      android:key="@string/pref_nav_search_options"
+      android:title="@string/pref_nav_search_options_title"
+      app:singleLineTitle="false"
+      android:persistent="false"
+      android:order="4" />
   </androidx.preference.PreferenceCategory>
   <androidx.preference.PreferenceCategory
     android:key="@string/pref_privacy"

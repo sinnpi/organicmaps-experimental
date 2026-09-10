@@ -232,6 +232,10 @@ public class Framework
 
   public static native boolean nativeIsTrackFollowMode();
 
+  public static native boolean nativeCanAddTrackDetour();
+
+  public static native boolean nativeAddTrackDetour(String title, String subtitle, double lat, double lon);
+
   public static native void nativeRemoveRoute();
 
   public static native void nativeFollowRoute();
@@ -252,6 +256,12 @@ public class Framework
   public static native void nativeRouteSetElevationActivePoint(double distanceMeters);
 
   public static native void nativeRouteRemoveElevationActivePoint();
+
+  /// @return Distance in meters travelled along the current route, or -1 if the route is invalid.
+  public static native double nativeGetRouteDistanceFromBeginMeters();
+
+  /// Moves the map so that the stretch of the current route between the two distances is visible.
+  public static native void nativeShowRouteStretch(double fromMeters, double toMeters, boolean animated);
 
   // When an end user is going to a turn he gets sound turn instructions.
   // If C++ part wants the client to pronounce an instruction nativeGenerateTurnNotifications returns
@@ -336,6 +346,7 @@ public class Framework
 
   public static native void nativeGet3dMode(Params3dMode result);
   public static native void nativeSet3dMode(boolean allow3d, boolean allow3dBuildings);
+  public static native void nativeSetLowPowerNavigationMode(boolean enabled);
 
   public static native boolean nativeGetAutoZoomEnabled();
   public static native void nativeSetAutoZoomEnabled(boolean enabled);

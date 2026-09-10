@@ -30,6 +30,12 @@ class TrackCorridorWorldGraph final : public WorldGraph
 public:
   TrackCorridorWorldGraph(WorldGraph & inner, std::vector<m2::PointD> centerline);
 
+  // Restrict matching to the current ordered leg, dropping cached penalties from the previous leg.
+  void SetCenterline(std::vector<m2::PointD> centerline);
+
+  // Turn generation needs the actual road junctions, not the last leg's filtered search graph.
+  void ClearCorridor() { m_centerline.clear(); }
+
   // Widens the hard search-space bound. Call again and retry the route search if the previous
   // attempt failed to find a path (mirrors the progressive radius widening used for start/finish
   // snapping in IndexRouter::PointsOnEdgesSnapping::FindBestSegments).

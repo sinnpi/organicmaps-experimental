@@ -5,6 +5,7 @@ import android.content.Context;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.ViewConfiguration;
+import androidx.annotation.Nullable;
 import com.github.mikephil.charting.charts.LineChart;
 import com.github.mikephil.charting.components.YAxis;
 import com.github.mikephil.charting.highlight.Highlight;
@@ -14,8 +15,29 @@ public class ElevationProfileChart extends LineChart
 {
   private static final float CAPTURE_RADIUS_DP = 22f;
 
+  /**
+   * Receives two-finger gestures instead of letting the chart zoom its own viewport. Used by the
+   * navigation profile, which anchors the viewport to the user's position and so must translate a
+   * pinch into a change of the distance shown rather than a viewport transform.
+   */
+  public interface OnWindowScaleListener
+  {
+    void onWindowScaleStart();
+
+    /**
+     * @param spanRatio Finger distance at the start of the pinch divided by the current one:
+     *                  greater than 1 when the fingers close in.
+     */
+    void onWindowScale(float spanRatio);
+  }
+
   private boolean mIsSelecting;
   private boolean mSelectConfirmed;
+  private boolean mAlwaysSelectOnDrag;
+  @Nullable
+  private OnWindowScaleListener mWindowScaleListener;
+  private boolean mPinching;
+  private float mPinchStartSpan;
   private float mMarkerScreenX;
   private float mTouchStartX;
   private float mLastHighlightedX = Float.NaN;
@@ -43,6 +65,21 @@ public class ElevationProfileChart extends LineChart
     mTouchSlop = ViewConfiguration.get(getContext()).getScaledTouchSlop();
   }
 
+  /**
+   * Makes a one-finger drag always move the marker, even when the chart is zoomed in, where a drag
+   * would otherwise pan the viewport. Used by the navigation profile, whose viewport follows the
+   * user's position and must not be panned by hand.
+   */
+  public void setAlwaysSelectOnDrag(boolean alwaysSelect)
+  {
+    mAlwaysSelectOnDrag = alwaysSelect;
+  }
+
+  public void setOnWindowScaleListener(@Nullable OnWindowScaleListener listener)
+  {
+    mWindowScaleListener = listener;
+  }
+
   @Override
   public boolean onInterceptTouchEvent(MotionEvent ev)
   {
@@ -59,14 +96,18 @@ public class ElevationProfileChart extends LineChart
 
     final int action = event.getActionMasked();
 
+    if (mWindowScaleListener != null && handleWindowScale(event, action))
+      return true;
+
     if (action == MotionEvent.ACTION_DOWN)
     {
       mLastHighlightedX = Float.NaN;
       mMarkerScreenX = getCurrentHighlightScreenX();
-      mIsSelecting = !isZoomedIn() || isTouchNearHighlight(event.getX(), mMarkerScreenX);
-      // When zoomed, highlight immediately. When not zoomed, wait for finger
-      // to move past touchSlop to distinguish drag from pinch-zoom start.
-      mSelectConfirmed = isZoomedIn();
+      mIsSelecting = mAlwaysSelectOnDrag || !isZoomedIn() || isTouchNearHighlight(event.getX(), mMarkerScreenX);
+      // When zoomed, highlight immediately. When not zoomed, wait for finger to move past touchSlop
+      // to distinguish drag from pinch-zoom start. In always-select mode a pinch also begins with a
+      // single finger, so wait there too, or the pinch scrubs before its second finger lands.
+      mSelectConfirmed = isZoomedIn() && !mAlwaysSelectOnDrag;
       mTouchStartX = event.getX();
     }
 
@@ -111,6 +152,52 @@ public class ElevationProfileChart extends LineChart
     if (action == MotionEvent.ACTION_MOVE && hasHighlight())
       performHighlightAtScreenX(mMarkerScreenX);
     return result;
+  }
+
+  /**
+   * Hands a two-finger gesture to the window-scale listener. Once a pinch starts, the rest of the
+   * gesture is consumed so that neither the built-in zoom nor a selection can resume half way
+   * through, when a lifted finger would otherwise look like a fresh drag.
+   *
+   * @return True while the gesture belongs to the listener.
+   */
+  private boolean handleWindowScale(MotionEvent event, int action)
+  {
+    switch (action)
+    {
+    case MotionEvent.ACTION_POINTER_DOWN:
+      if (!mPinching && event.getPointerCount() == 2)
+      {
+        mPinching = true;
+        mPinchStartSpan = spacing(event);
+        mIsSelecting = false;
+        mSelectConfirmed = false;
+        mWindowScaleListener.onWindowScaleStart();
+      }
+      return mPinching;
+    case MotionEvent.ACTION_MOVE:
+      if (mPinching && event.getPointerCount() >= 2)
+      {
+        final float span = spacing(event);
+        if (span > 0f && mPinchStartSpan > 0f)
+          mWindowScaleListener.onWindowScale(mPinchStartSpan / span);
+      }
+      return mPinching;
+    case MotionEvent.ACTION_UP:
+    case MotionEvent.ACTION_CANCEL:
+      if (!mPinching)
+        return false;
+      mPinching = false;
+      return true;
+    default: return mPinching;
+    }
+  }
+
+  private static float spacing(MotionEvent event)
+  {
+    final float dx = event.getX(0) - event.getX(1);
+    final float dy = event.getY(0) - event.getY(1);
+    return (float) Math.hypot(dx, dy);
   }
 
   @Override

@@ -165,6 +165,7 @@ protected:
   TViewportChangedFn m_viewportChangedFn;
 
   drape_ptr<df::DrapeEngine> m_drapeEngine;
+  bool m_lowPowerNavigationMode = false;
   double m_fontScaleFactor = 1.0;
 
   // POC source of raster background tiles (see tileBackgroundReadFn in CreateDrapeEngine).
@@ -316,6 +317,7 @@ public:
   void ClearViewportSearchResults() override;
   // PositionProvider, SearchApi::Delegate and TipsApi::Delegate override.
   std::optional<m2::PointD> GetCurrentPosition() const override;
+  m2::RectD GetViewportSearchRect(m2::RectD const & viewport) const override;
   bool ParseSearchQueryCommand(search::SearchParams const & params) override;
   m2::PointD GetMinDistanceBetweenResults() const override;
 
@@ -466,6 +468,7 @@ public:
   void SetMapStyle(MapStyle mapStyle);
   void MarkMapStyle(MapStyle mapStyle);
   MapStyle GetMapStyle() const;
+  void SetLowPowerNavigationMode(bool enabled);
 
   void SetupMeasurementSystem();
 
@@ -525,6 +528,9 @@ public:
   void FillSearchResultsMarks(bool clear, search::Results const & results);
   void FillSearchResultsMarks(SearchResultsIterT beg, SearchResultsIterT end, bool clear);
 
+  /// \brief Picks the results that are on the way while a route is being followed.
+  std::vector<search::Result const *> SelectResultsAlongRoute(SearchResultsIterT beg, SearchResultsIterT end) const;
+
   /// Calculate distance and direction to POI for the given position.
   /// @param[in]  point             POI's position;
   /// @param[in]  lat, lon, north   Current position and heading from north;
@@ -556,6 +562,10 @@ public:
 
   void ShowRect(m2::RectD const & rect, bool animation = true, bool useVisibleViewport = false);
   void ShowRect(m2::AnyRectD const & rect, bool animation = true, bool useVisibleViewport = false);
+
+  /// \brief Frames the stretch of the current route between two distances travelled along it, so
+  /// that both ends stay on the visible part of the screen.
+  void ShowRouteStretch(double fromMeters, double toMeters, bool animated);
 
   void SetViewportListener(TViewportChangedFn const & fn);
 

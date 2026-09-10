@@ -1,5 +1,7 @@
 package app.organicmaps.widget.menu;
 
+import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.util.Pair;
@@ -10,6 +12,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
+import androidx.core.widget.ImageViewCompat;
 import androidx.lifecycle.DefaultLifecycleObserver;
 import androidx.lifecycle.LifecycleOwner;
 import app.organicmaps.MwmApplication;
@@ -33,6 +36,7 @@ public class NavMenu implements DefaultLifecycleObserver
   private final View mHeaderFrame;
 
   private final ImageView mTts;
+  private final ImageView mSettings;
   private final View mSpeedViewContainer;
   private final TextView mSpeedValue;
   private final TextView mSpeedUnits;
@@ -44,12 +48,19 @@ public class NavMenu implements DefaultLifecycleObserver
   private final TextView mDistanceValue;
   private final TextView mDistanceUnits;
   private final LinearProgressIndicator mRouteProgress;
+  private final TextView[] mLowPowerPrimaryTextViews;
+  private final TextView[] mLowPowerSecondaryTextViews;
+  private final ColorStateList[] mDefaultPrimaryTextColors;
+  private final ColorStateList[] mDefaultSecondaryTextColors;
+  private final ColorStateList mDefaultSettingsTint;
+  private final int mDefaultRouteProgressVisibility;
 
   private final AppCompatActivity mActivity;
   private final NavMenuListener mNavMenuListener;
   private final Runnable mTtsStateListener = this::refreshTts;
 
   private int currentPeekHeight = 0;
+  private boolean mLowPowerMode;
 
   public interface OnMenuSizeChangedListener
   {
@@ -107,9 +118,16 @@ public class NavMenu implements DefaultLifecycleObserver
     mDistanceValue = bottomFrame.findViewById(R.id.distance_value);
     mDistanceUnits = bottomFrame.findViewById(R.id.distance_dimen);
     mRouteProgress = bottomFrame.findViewById(R.id.navigation_progress);
+    mLowPowerPrimaryTextViews = new TextView[] {mSpeedValue, mTimeHourValue, mTimeMinuteValue, mDistanceValue};
+    mLowPowerSecondaryTextViews =
+        new TextView[] {mSpeedUnits, mTimeHourUnits, mTimeMinuteUnits, mTimeEstimate, mDistanceUnits};
+    mDefaultPrimaryTextColors = getTextColors(mLowPowerPrimaryTextViews);
+    mDefaultSecondaryTextColors = getTextColors(mLowPowerSecondaryTextViews);
+    mDefaultRouteProgressVisibility = mRouteProgress.getVisibility();
 
     // Bottom frame buttons
-    ImageView mSettings = bottomFrame.findViewById(R.id.settings);
+    mSettings = bottomFrame.findViewById(R.id.settings);
+    mDefaultSettingsTint = ImageViewCompat.getImageTintList(mSettings);
     mSettings.setOnClickListener(v -> onSettingsClicked());
     mTts = bottomFrame.findViewById(R.id.tts_volume);
     mTts.setOnClickListener(v -> onTtsClicked());
@@ -125,6 +143,42 @@ public class NavMenu implements DefaultLifecycleObserver
   public void onDestroy(@NonNull LifecycleOwner owner)
   {
     TtsPlayer.removeStateChangedListener(mTtsStateListener);
+  }
+
+  @NonNull
+  private static ColorStateList[] getTextColors(@NonNull TextView[] views)
+  {
+    final ColorStateList[] colors = new ColorStateList[views.length];
+    for (int i = 0; i < views.length; ++i)
+      colors[i] = views[i].getTextColors();
+    return colors;
+  }
+
+  public void setLowPowerMode(boolean enabled)
+  {
+    if (mLowPowerMode == enabled)
+      return;
+
+    mLowPowerMode = enabled;
+    if (enabled)
+    {
+      for (TextView view : mLowPowerPrimaryTextViews)
+        view.setTextColor(Color.WHITE);
+      for (TextView view : mLowPowerSecondaryTextViews)
+        view.setTextColor(0xFFBDBDBD);
+      ImageViewCompat.setImageTintList(mSettings, ColorStateList.valueOf(Color.WHITE));
+      mRouteProgress.setVisibility(View.GONE);
+    }
+    else
+    {
+      for (int i = 0; i < mLowPowerPrimaryTextViews.length; ++i)
+        mLowPowerPrimaryTextViews[i].setTextColor(mDefaultPrimaryTextColors[i]);
+      for (int i = 0; i < mLowPowerSecondaryTextViews.length; ++i)
+        mLowPowerSecondaryTextViews[i].setTextColor(mDefaultSecondaryTextColors[i]);
+      ImageViewCompat.setImageTintList(mSettings, mDefaultSettingsTint);
+      mRouteProgress.setVisibility(mDefaultRouteProgressVisibility);
+    }
+    refreshTts();
   }
 
   private void onStopClicked()
@@ -187,16 +241,26 @@ public class NavMenu implements DefaultLifecycleObserver
   public void refreshTts()
   {
     final Drawable icon;
-    switch (TtsPlayer.getState())
+    if (mLowPowerMode)
     {
-    case READY_ON:
-      icon = Graphics.tint(mActivity, R.drawable.ic_voice_on, androidx.appcompat.R.attr.colorAccent);
-      break;
-    case READY_OFF: icon = Graphics.tint(mActivity, R.drawable.ic_voice_off); break;
-    case INITIALIZING:
-    case UNAVAILABLE:
-    case NEEDS_LANGUAGE:
-    default: icon = Graphics.tint(mActivity, R.drawable.ic_voice_off, R.attr.iconTintDisabled); break;
+      final boolean enabled = TtsPlayer.getState() == TtsPlayer.State.READY_ON;
+      final int color = enabled ? Color.WHITE : 0xFF777777;
+      icon = app.organicmaps.sdk.util.Graphics.tint(
+          ContextCompat.getDrawable(mActivity, enabled ? R.drawable.ic_voice_on : R.drawable.ic_voice_off), color);
+    }
+    else
+    {
+      switch (TtsPlayer.getState())
+      {
+      case READY_ON:
+        icon = Graphics.tint(mActivity, R.drawable.ic_voice_on, androidx.appcompat.R.attr.colorAccent);
+        break;
+      case READY_OFF: icon = Graphics.tint(mActivity, R.drawable.ic_voice_off); break;
+      case INITIALIZING:
+      case UNAVAILABLE:
+      case NEEDS_LANGUAGE:
+      default: icon = Graphics.tint(mActivity, R.drawable.ic_voice_off, R.attr.iconTintDisabled); break;
+      }
     }
     mTts.setImageDrawable(icon);
   }
@@ -248,6 +312,8 @@ public class NavMenu implements DefaultLifecycleObserver
       else
         mSpeedValue.setTextColor(ContextCompat.getColor(mActivity, R.color.base_red));
     }
+    else if (mLowPowerMode)
+      mSpeedValue.setTextColor(Color.WHITE);
     else
       mSpeedValue.setTextColor(ThemeUtils.getColor(mActivity, android.R.attr.textColorPrimary));
 

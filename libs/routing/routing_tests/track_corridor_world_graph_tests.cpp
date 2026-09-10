@@ -113,6 +113,31 @@ UNIT_TEST(TrackCorridorWorldGraph_BiasesTowardTrackOverFasterParallelRoad)
   TestRouteGeometry(*starter, AlgorithmForWorldGraph::Result::OK, {nearLeft, nearRight});
 }
 
+UNIT_TEST(TrackCorridorWorldGraph_ChangingLegDropsOldPenaltiesAndClearingRestoresRoads)
+{
+  EnsureClassificatorLoaded();
+  auto const a = mercator::FromLatLon(0.0, 0.0);
+  auto const b = mercator::FromLatLon(0.0, 0.003);
+  auto const c = mercator::FromLatLon(0.0005, 0.0);
+  auto const d = mercator::FromLatLon(0.0005, 0.003);
+  auto graph = BuildParallelRoadsGraph(a, b, c, d);
+  TrackCorridorWorldGraph corridor(*graph, {a, b});
+  auto const start = MakeFakeEnding(0, 0, a, corridor);
+  auto const finish = MakeFakeEnding(0, 0, b, corridor);
+  auto test = [&](std::vector<m2::PointD> const & expected)
+  {
+    auto starter = MakeStarter(start, finish, corridor);
+    TestRouteGeometry(*starter, AlgorithmForWorldGraph::Result::OK, expected);
+  };
+  test({a, b});
+  corridor.SetCenterline({c, d});
+  test({a, c, d, b});
+  corridor.SetCenterline({a, b});
+  test({a, b});
+  corridor.ClearCorridor();
+  test({a, c, d, b});
+}
+
 // IndexGraph::CalculateEdgeWeight prices a directed edge u->v as the weight of v no matter which
 // direction it is discovered from, so the forward and backward A* waves agree on what it costs. The
 // corridor penalty must preserve that: keying it off the edge's target instead would make the

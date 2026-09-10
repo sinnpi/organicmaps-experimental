@@ -41,6 +41,7 @@ set(SRC
   speed_cameras_tests.cpp
   tools.cpp
   tools.hpp
+  track_checkpoints_tests.cpp
   track_corridor_world_graph_tests.cpp
   turns_generator_test.cpp
   turns_sound_test.cpp

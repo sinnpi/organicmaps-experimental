@@ -209,6 +209,60 @@ UNIT_TEST(TrackFollowing_PreservesCircularTrack)
   TEST(IsClose(plan->m_centerline.front(), plan->m_centerline.back()), ());
 }
 
+UNIT_TEST(TrackFollowing_NearLoopStartPrefersWholeLoopInEitherDirection)
+{
+  kml::MultiGeometry geometry;
+  geometry.m_lines = {{Point(0.0, 0.0), Point(0.0, 0.01), Point(0.01, 0.01), Point(0.01, 0.0), Point(0.0, 0.0)}};
+
+  for (auto direction : {track_following::Direction::Forward, track_following::Direction::Reverse})
+  {
+    // Exactly on the returning leg, 22 m before the finish. Previously only those 22 m were kept.
+    auto const current = direction == track_following::Direction::Forward ? mercator::FromLatLon(0.0002, 0.0)
+                                                                          : mercator::FromLatLon(0.0, 0.0002);
+    auto const plan = track_following::MakePlan(geometry, current, direction);
+    TEST(plan, ());
+    TEST_GREATER(LengthM(plan->m_centerline), 4000.0, ());
+    auto const next = direction == track_following::Direction::Forward ? Point(0.0, 0.01) : Point(0.01, 0.0);
+    TEST(IsClose(plan->m_centerline[1], next.GetPoint()), ());
+  }
+}
+
+UNIT_TEST(TrackFollowing_NearlyClosedLoopKeepsWholeTrack)
+{
+  kml::MultiGeometry geometry;
+  geometry.m_lines = {{Point(0.0, 0.0), Point(0.0, 0.01), Point(0.01, 0.01), Point(0.01, 0.0), Point(0.0002, 0.0)}};
+  for (auto direction : {track_following::Direction::Forward, track_following::Direction::Reverse})
+  {
+    auto const plan = track_following::MakePlan(geometry, mercator::FromLatLon(0.0001, 0.0), direction);
+    TEST(plan, ());
+    TEST_GREATER(LengthM(plan->m_centerline), 4000.0, ());
+    auto const & line = geometry.m_lines.front();
+    auto const & finish = direction == track_following::Direction::Forward ? line.back() : line.front();
+    TEST(IsClose(plan->m_centerline.back(), finish.GetPoint()), ());
+  }
+}
+
+UNIT_TEST(TrackFollowing_AwayFromLoopStartKeepsOnlyRemainder)
+{
+  kml::MultiGeometry geometry;
+  geometry.m_lines = {{Point(0.0, 0.0), Point(0.0, 0.01), Point(0.01, 0.01), Point(0.01, 0.0), Point(0.0, 0.0)}};
+  auto const current = mercator::FromLatLon(0.005, 0.0);
+  auto const plan = track_following::MakePlan(geometry, current, track_following::Direction::Forward);
+  TEST(plan, ());
+  TEST(IsClose(plan->m_centerline.front(), current), ());
+  TEST_LESS(LengthM(plan->m_centerline), 600.0, ());
+}
+
+UNIT_TEST(TrackFollowing_ShortOpenTrackNearBothEndsDoesNotRestart)
+{
+  kml::MultiGeometry geometry;
+  geometry.m_lines = {{Point(0.0, 0.0), Point(0.0, 0.0003)}};
+  auto const current = mercator::FromLatLon(0.0, 0.0002);
+  auto const plan = track_following::MakePlan(geometry, current, track_following::Direction::Forward);
+  TEST(plan, ());
+  TEST(IsClose(plan->m_centerline.front(), current), ());
+}
+
 UNIT_TEST(TrackFollowing_RejectsFinishedTrack)
 {
   kml::MultiGeometry geometry;
@@ -276,15 +330,129 @@ UNIT_TEST(TrackFollowing_RejectsPlanToSelectedPointAtCurrentPosition)
   TEST(!plan, ());
 }
 
-// A closed track is routed through one via-point half way round to pin down which way to go. The
-// centerline's points sit where the track changes shape, so counting them is not measuring it: here
-// the middle of the vector is a corner 10 m along a 210 m line.
-UNIT_TEST(TrackFollowing_FindsPointAtHalfLength)
+UNIT_TEST(TrackFollowing_LoopCheckpointsAreOrderedByDistance)
 {
-  std::vector<m2::PointD> const centerline = {mercator::FromLatLon(0.0, 0.0), mercator::FromLatLon(0.0, 0.0001),
-                                              mercator::FromLatLon(0.0, 0.0002), mercator::FromLatLon(0.0, 0.002)};
+  auto const start = mercator::FromLatLon(0.0, 0.0);
+  // Uneven sampling must not bias the checkpoints toward the densely sampled start.
+  std::vector<m2::PointD> centerline = {start,
+                                        mercator::FromLatLon(0.0, 0.0001),
+                                        mercator::FromLatLon(0.0, 0.0002),
+                                        mercator::FromLatLon(0.0, 0.012),
+                                        mercator::FromLatLon(0.012, 0.012),
+                                        mercator::FromLatLon(0.012, 0.0),
+                                        start};
+  auto const current = mercator::FromLatLon(-0.001, -0.001);
+  for (bool reverse : {false, true})
+  {
+    if (reverse)
+      std::reverse(centerline.begin(), centerline.end());
+    auto const checkpoints = track_following::MakeCheckpoints(centerline, current);
+    TEST_GREATER(checkpoints.size(), 2, ());
+    TEST_EQUAL(checkpoints.front(), current, ());
+    TEST_EQUAL(checkpoints.back(), start, ());
+    // The internal checkpoint is on the far side, not among the extra samples near the start.
+    TEST_GREATER(mercator::DistanceOnEarth(start, checkpoints[1]), 1000.0, ());
+  }
+}
 
-  TEST(IsClose(track_following::PointAtHalfLength(centerline), mercator::FromLatLon(0.0, 0.001)), ());
+UNIT_TEST(TrackFollowing_NearlyClosedTrackStillHasLoopCheckpoints)
+{
+  std::vector<m2::PointD> const centerline = {mercator::FromLatLon(0.0, 0.0), mercator::FromLatLon(0.0, 0.01),
+                                              mercator::FromLatLon(0.01, 0.01), mercator::FromLatLon(0.01, 0.0),
+                                              mercator::FromLatLon(0.001, 0.0)};
+  auto const checkpoints = track_following::MakeCheckpoints(centerline, mercator::FromLatLon(-0.001, 0.0));
+  TEST_GREATER(checkpoints.size(), 2, ());
+  TEST_EQUAL(checkpoints.back(), centerline.back(), ());
+}
+
+UNIT_TEST(TrackFollowing_OpenTrackNeedsOnlyTerminalCheckpoints)
+{
+  std::vector<m2::PointD> const centerline = {mercator::FromLatLon(0.0, 0.0), mercator::FromLatLon(0.001, 0.01),
+                                              mercator::FromLatLon(0.0, 0.02)};
+  auto const current = mercator::FromLatLon(-0.001, 0.0);
+  auto const checkpoints = track_following::MakeCheckpoints(centerline, current);
+  TEST_EQUAL(checkpoints.size(), 2, ());
+  TEST_EQUAL(checkpoints.front(), current, ());
+  TEST_EQUAL(checkpoints.back(), centerline.back(), ());
+}
+
+UNIT_TEST(TrackFollowing_ToSelectedPointNearLoopStartDoesNotRestart)
+{
+  kml::MultiGeometry geometry;
+  geometry.m_lines = {{Point(0.0, 0.0), Point(0.0, 0.01), Point(0.01, 0.01), Point(0.01, 0.0), Point(0.0, 0.0)}};
+  auto const current = mercator::FromLatLon(0.0003, 0.0);
+  auto const destination = mercator::FromLatLon(0.0001, 0.0);
+  auto const plan = track_following::MakePlanTo(geometry, current, destination);
+  TEST(plan, ());
+  TEST(IsClose(plan->m_centerline.front(), current), ());
+  TEST(IsClose(plan->m_centerline.back(), destination), ());
+  TEST_LESS(LengthM(plan->m_centerline), 30.0, ());
+}
+
+UNIT_TEST(TrackFollowing_DetourRejoinsAheadInEitherDirection)
+{
+  std::vector<m2::PointD> track = {mercator::FromLatLon(0.0, 0.0), mercator::FromLatLon(0.0, 0.02)};
+  for (bool reverse : {false, true})
+  {
+    if (reverse)
+      std::reverse(track.begin(), track.end());
+    auto const current = mercator::FromLatLon(0.0, 0.01);
+    auto const remaining = track_following::GetRemainingCenterline(track, 0, current);
+    TEST_EQUAL(remaining.front(), current, ());
+    auto const stop = mercator::FromLatLon(0.001, reverse ? 0.005 : 0.015);
+    auto const detour = track_following::MakeDetourCenterline(remaining, stop);
+    TEST(IsClose(detour.front(), mercator::FromLatLon(0.0, reverse ? 0.005 : 0.015)), ());
+    TEST_EQUAL(detour.back(), track.back(), ());
+    // A stop behind us must not move the rejoin point behind the departure point.
+    auto const behind = track_following::MakeDetourCenterline(remaining, track.front());
+    TEST_EQUAL(behind.front(), current, ());
+  }
+}
+
+UNIT_TEST(TrackFollowing_DetourDoesNotSkipAnUnvisitedLoop)
+{
+  std::vector<m2::PointD> const track = {mercator::FromLatLon(0.0, 0.0), mercator::FromLatLon(0.0, 0.01),
+                                         mercator::FromLatLon(0.01, 0.01), mercator::FromLatLon(0.01, 0.0),
+                                         mercator::FromLatLon(0.0, 0.0)};
+  auto const current = mercator::FromLatLon(0.0, 0.001);
+  auto const remaining = track_following::GetRemainingCenterline(track, 0, current);
+  // This shop is closest to the returning side, which we have not ridden yet.
+  auto const stop = mercator::FromLatLon(0.001, -0.0001);
+  auto const detour = track_following::MakeDetourCenterline(remaining, stop);
+  TEST(IsClose(detour.front(), current), ());
+  TEST_GREATER(LengthM(detour), 4000.0, ());
+}
+
+UNIT_TEST(TrackFollowing_RemainingCenterlineUsesTheCurrentVisit)
+{
+  std::vector<m2::PointD> const track = {mercator::FromLatLon(0.0, 0.0), mercator::FromLatLon(0.0, 0.01),
+                                         mercator::FromLatLon(0.0, 0.0)};
+  auto const current = mercator::FromLatLon(0.0, 0.004);
+  auto const outward = track_following::GetRemainingCenterline(track, 0, current);
+  auto const returning = track_following::GetRemainingCenterline(track, 1, current);
+  TEST_GREATER(LengthM(outward), 1700.0, ());
+  TEST_LESS(LengthM(returning), 450.0, ());
+  TEST_EQUAL(returning.front(), current, ());
+}
+
+UNIT_TEST(TrackFollowing_DetourCheckpointsIncludeStopAndRejoin)
+{
+  std::vector<m2::PointD> const track = {mercator::FromLatLon(0.0, 0.01), mercator::FromLatLon(0.0, 0.02)};
+  auto const current = mercator::FromLatLon(0.0, 0.0);
+  auto const stop = mercator::FromLatLon(0.001, 0.01);
+  auto const checkpoints = track_following::MakeDetourCheckpoints(track, current, stop);
+  TEST_EQUAL(checkpoints, (std::vector<m2::PointD>{current, stop, track.front(), track.back()}), ());
+  auto const returning = track_following::MakeDetourCheckpoints(track, stop, std::nullopt);
+  TEST_EQUAL(returning, (std::vector<m2::PointD>{stop, track.front(), track.back()}), ());
+  auto const onTrack = track_following::MakeDetourCheckpoints(track, current, track.front());
+  TEST_EQUAL(onTrack, (std::vector<m2::PointD>{current, track.front(), track.back()}), ());
+}
+
+UNIT_TEST(TrackFollowing_DetourAtTheEndFailsWithoutChangingTheTrack)
+{
+  std::vector<m2::PointD> const track = {mercator::FromLatLon(0.0, 0.0), mercator::FromLatLon(0.0, 0.01)};
+  TEST(track_following::MakeDetourCenterline(track, track.back()).empty(), ());
+  TEST(track_following::GetRemainingCenterline(track, 0, track.back()).empty(), ());
 }
 
 UNIT_TEST(TrackFollowing_RejectsDegenerateGeometry)

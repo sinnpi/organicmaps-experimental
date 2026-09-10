@@ -12,6 +12,7 @@ namespace settings
 extern std::string_view kMeasurementUnits;
 extern std::string_view kDeveloperMode;
 extern std::string_view kTrackFollowEnabled;
+extern std::string_view kNavElevationProfileEnabled;
 extern std::string_view kMapLanguageCode;
 // The following two settings are configured externally at the metaserver.
 extern std::string_view kDonateUrl;

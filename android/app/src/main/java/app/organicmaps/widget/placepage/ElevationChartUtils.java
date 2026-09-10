@@ -3,6 +3,7 @@ package app.organicmaps.widget.placepage;
 import android.content.Context;
 import android.graphics.Color;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 import app.organicmaps.R;
 import app.organicmaps.sdk.settings.UnitLocale;
@@ -112,14 +113,22 @@ public final class ElevationChartUtils
 
   public static void setChartData(@NonNull LineChart chart, @NonNull List<Entry> values, @NonNull Context context)
   {
+    setChartData(chart, values, context, true);
+  }
+
+  /// @param[in] resetZoom Reset zoom after layout to handle viewport size changes on rotation.
+  ///                      Pass false to keep a zoom level the caller applies itself.
+  public static void setChartData(@NonNull LineChart chart, @NonNull List<Entry> values, @NonNull Context context,
+                                  boolean resetZoom)
+  {
     LineDataSet set = new LineDataSet(values, ELEVATION_PROFILE_POINTS);
     applyLineDataSetStyle(set, context);
     LineData data = new LineData(set);
     data.setDrawValues(false);
     chart.setData(data);
     chart.animateX(0);
-    // Reset zoom after layout to handle viewport size changes on rotation.
-    chart.post(chart::fitScreen);
+    if (resetZoom)
+      chart.post(chart::fitScreen);
   }
 
   public static void configureYAxisBounds(@NonNull LineChart chart, float minAltitude, float maxAltitude)
@@ -193,6 +202,35 @@ public final class ElevationChartUtils
       line.setLabel("");
       xAxis.addLimitLine(line);
     }
+  }
+
+  /// Altitude range over the [fromX, toX] distance window, interpolating at both edges.
+  /// @return {min, max}, or null if there is nothing to measure.
+  @Nullable
+  public static float[] computeAltitudeRange(@NonNull List<Entry> entries, float fromX, float toX)
+  {
+    if (entries.isEmpty() || toX < fromX)
+      return null;
+
+    float min = interpolateY(entries, fromX);
+    float max = min;
+
+    float edge = interpolateY(entries, toX);
+    min = Math.min(min, edge);
+    max = Math.max(max, edge);
+
+    for (Entry entry : entries)
+    {
+      final float x = entry.getX();
+      if (x <= fromX)
+        continue;
+      if (x >= toX)
+        break;
+      min = Math.min(min, entry.getY());
+      max = Math.max(max, entry.getY());
+    }
+
+    return new float[] {min, max};
   }
 
   public static float interpolateY(@NonNull List<Entry> entries, float xVal)

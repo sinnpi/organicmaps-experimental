@@ -41,7 +41,10 @@
 
 #include <glaze/json.hpp>
 
+#include <algorithm>
+#include <limits>
 #include <map>
+#include <utility>
 
 using namespace routing;
 
@@ -350,13 +353,19 @@ RoutingManager::RoutingManager(Callbacks && callbacks, Delegate & delegate)
 
   m_routingSession.SetCheckpointCallback([this](size_t passedCheckpointIdx)
   {
-    GetPlatform().RunTask(Platform::Thread::Gui, [this, passedCheckpointIdx]()
+    auto const generation = m_routingGeneration;
+    GetPlatform().RunTask(Platform::Thread::Gui, [this, passedCheckpointIdx, generation]()
     {
+      // A queued checkpoint from the old route must not pass a newly added detour stop.
+      if (generation != m_routingGeneration)
+        return;
       if (m_trackFollowState)
       {
-        // A closed track carries one internal via-point that has no route mark of its own, so only
+        // A loop carries internal via-points that have no route marks of their own, so only
         // the last checkpoint corresponds to the visible finish.
-        if (passedCheckpointIdx + 1 == m_trackFollowState->m_checkpointsCount)
+        if (m_trackFollowState->m_detour && !m_trackFollowState->m_detour->m_stopPassed && passedCheckpointIdx == 1)
+          OnRoutePointPassed(RouteMarkType::Intermediate, 0);
+        else if (passedCheckpointIdx + 1 == m_trackFollowState->m_checkpointsCount)
           OnRoutePointPassed(RouteMarkType::Finish, 0);
         return;
       }
@@ -481,6 +490,8 @@ void RoutingManager::OnRoutePointPassed(RouteMarkType type, size_t intermediateI
   ASSERT(m_bmManager != nullptr, ());
   RoutePointsLayout routePoints(*m_bmManager);
   routePoints.PassRoutePoint(type, intermediateIndex);
+  if (m_trackFollowState && m_trackFollowState->m_detour && type == RouteMarkType::Intermediate)
+    m_trackFollowState->m_detour->m_stopPassed = true;
 
   if (type == RouteMarkType::Finish)
     RemoveRoute(false /* deactivateFollowing */);
@@ -529,7 +540,8 @@ void RoutingManager::SetRouterImpl(RouterType type)
 {
   VehicleType const vehicleType = GetVehicleType(type);
 
-  m_loadAltitudes = vehicleType != VehicleType::Car;
+  // Elevation profiles are available during navigation for every vehicle type.
+  m_loadAltitudes = type != RouterType::Ruler;
 
   std::unique_ptr<IRouter> router;
   std::unique_ptr<AbsentRegionsFinder> absentFinder;
@@ -855,9 +867,25 @@ void RoutingManager::InsertSingleRoute(RouteBase const & route, bool isActive, d
   std::vector<RouteSegment> segments;
   double distance = 0.0;
   auto const subroutesCount = route.GetSubrouteCount();
-  for (size_t subrouteIndex = route.GetCurrentSubrouteIdx(); subrouteIndex < subroutesCount; ++subrouteIndex)
+  // Internal track checkpoints are not stops. Render one continuous line so their fake connectors
+  // and the normal "after the next stop" color mask cannot leak into the map.
+  bool const continuousTrack = isActive && m_trackFollowState.has_value();
+  auto renderBegin = route.GetCurrentSubrouteIdx();
+  if (continuousTrack)
   {
-    route.GetSubrouteInfo(subrouteIndex, segments);
+    // Keep the start consistent with the full segment vector, including after passing a checkpoint.
+    // Rebuilds leave empty placeholders for earlier legs; the renderer hides travelled geometry.
+    renderBegin = 0;
+    while (route.GetSubrouteAttrs(renderBegin).GetEndSegmentIdx() == 0)
+      ++renderBegin;
+  }
+  auto const renderEnd = continuousTrack ? renderBegin + 1 : subroutesCount;
+  for (size_t subrouteIndex = renderBegin; subrouteIndex < renderEnd; ++subrouteIndex)
+  {
+    if (continuousTrack)
+      segments = route.GetRouteSegments();
+    else
+      route.GetSubrouteInfo(subrouteIndex, segments);
 
     auto const startPt = route.GetSubrouteAttrs(subrouteIndex).GetStart().GetPoint();
     auto subroute =
@@ -1009,6 +1037,7 @@ bool RoutingManager::TryTapOnAlternativeRoute(m2::PointD const & mercator, doubl
 
 void RoutingManager::CloseRouting(bool removeRoutePoints)
 {
+  ++m_routingGeneration;
   m_extrapolator.Enable(false);
   // Hide preview.
   HidePreviewSegments();
@@ -1131,7 +1160,18 @@ bool RoutingManager::ContinueRouteToPoint(RouteMarkData && markData)
 
 void RoutingManager::RemoveRoutePoint(RouteMarkType type, size_t intermediateIndex)
 {
-  ResetTrackFollowMode();
+  if (m_trackFollowState && m_trackFollowState->m_detour && type == RouteMarkType::Intermediate)
+  {
+    // Removing an unvisited stop restores the track from where the detour was requested.
+    auto & state = *m_trackFollowState;
+    if (state.m_detour->m_stopPassed)
+      state.m_centerline = std::move(state.m_detour->m_centerline);
+    state.m_detour.reset();
+    state.m_approachLegs = 0;
+    CloseRouting(false /* remove route points */);
+  }
+  else
+    ResetTrackFollowMode();
   ASSERT(m_bmManager != nullptr, ());
   RoutePointsLayout routePoints(*m_bmManager);
   routePoints.RemoveRoutePoint(type, intermediateIndex);
@@ -1269,6 +1309,71 @@ void RoutingManager::GenerateNotifications(std::vector<std::string> & turnNotifi
   m_routingSession.GenerateNotifications(turnNotifications, announceStreets);
 }
 
+bool RoutingManager::CanAddTrackDetour() const
+{
+  if (!m_trackFollowState || !IsRoutingFollowing() || !IsRouteValid() || IsRouteFinished())
+    return false;
+  auto const & state = *m_trackFollowState;
+  return !state.m_detour || m_routingSession.GetRoute()->GetCurrentSubrouteIdx() >= state.m_approachLegs;
+}
+
+void RoutingManager::UpdateTrackFollowProgress()
+{
+  if (!m_trackFollowState || !IsRouteValid())
+    return;
+  auto & state = *m_trackFollowState;
+  auto const subroute = m_routingSession.GetRoute()->GetCurrentSubrouteIdx();
+  if (state.m_detour && subroute < state.m_approachLegs)
+  {
+    if (state.m_approachLegs == 2 && subroute >= 1)
+      state.m_detour->m_stopPassed = true;
+    return;
+  }
+  auto const & centerline = state.m_detour ? state.m_detour->m_centerline : state.m_centerline;
+  auto const position = m_routingSession.GetRoute()->GetCurrentIter().m_pt;
+  auto remaining = track_following::GetRemainingCenterline(centerline, subroute - state.m_approachLegs, position);
+  if (remaining.empty())
+    return;
+  state.m_centerline = std::move(remaining);
+  if (state.m_detour)
+    RoutePointsLayout(*m_bmManager).RemoveIntermediateRoutePoints();
+  state.m_detour.reset();
+  state.m_approachLegs = 0;
+}
+
+bool RoutingManager::AddTrackDetour(RouteMarkData && stop)
+{
+  CHECK_THREAD_CHECKER(m_threadChecker, ());
+  if (!CanAddTrackDetour() || !m_bmManager->MyPositionMark().HasPosition())
+    return false;
+
+  auto const & state = *m_trackFollowState;
+  auto const & centerline = state.m_detour ? state.m_detour->m_centerline : state.m_centerline;
+  auto const route = m_routingSession.GetRoute();
+  auto remaining = track_following::GetRemainingCenterline(
+      centerline, route->GetCurrentSubrouteIdx() - state.m_approachLegs, route->GetCurrentIter().m_pt);
+  if (remaining.empty())
+    return false;
+  auto rejoin = track_following::MakeDetourCenterline(remaining, stop.m_position);
+  if (rejoin.empty())
+    return false;
+
+  CloseRouting(false /* remove route points */);
+  auto & newState = *m_trackFollowState;
+  newState.m_centerline = std::move(remaining);
+  newState.m_detour = TrackFollowState::Detour{std::move(rejoin)};
+  newState.m_approachLegs = 0;
+  RoutePointsLayout points(*m_bmManager);
+  points.RemoveIntermediateRoutePoints();
+  stop.m_pointType = RouteMarkType::Intermediate;
+  stop.m_intermediateIndex = 0;
+  stop.m_isMyPosition = false;
+  stop.m_isVisible = true;
+  stop.m_isPassed = false;
+  points.AddRoutePoint(std::move(stop));
+  return true;
+}
+
 RoutingManager::PrepareTrackFollowResult RoutingManager::PrepareTrackFollow(kml::TrackId trackId,
                                                                             track_following::Direction direction)
 {
@@ -1355,6 +1460,7 @@ void RoutingManager::BuildRoute(uint32_t timeoutSec)
   // https://github.com/organicmaps/organicmaps/issues/7939
   // https://github.com/organicmaps/organicmaps/issues/9592
   // https://github.com/organicmaps/organicmaps/issues/11256
+  UpdateTrackFollowProgress();
   RemovePassedRoutePoints();
 
   auto routePoints = GetRoutePoints();
@@ -1422,20 +1528,27 @@ void RoutingManager::BuildRoute(uint32_t timeoutSec)
 
   if (m_trackFollowState)
   {
-    ASSERT_EQUAL(routePoints.size(), 2, ());
     auto & state = *m_trackFollowState;
-
-    // The track is followed by biasing the search graph toward it, not by forcing the route through a
-    // chain of via-points. Via-points are what used to make it detour at intersections just to touch
-    // a point it had snapped ambiguously.
-    m_routingSession.SetTrackCorridor(state.m_centerline);
-
-    // A closed track's start and finish coincide, which on its own would collapse into an empty
-    // route. A single via-point half way round is the least that pins down which way to go; the
-    // corridor shapes everything between.
-    if (points.front().EqualDxDy(points.back(), mercator::kPointEqualityEps))
-      points.insert(points.begin() + 1, track_following::PointAtHalfLength(state.m_centerline));
-
+    if (state.m_detour)
+    {
+      auto const & detour = *state.m_detour;
+      std::optional<m2::PointD> stop;
+      if (!detour.m_stopPassed)
+      {
+        CHECK_EQUAL(routePoints.size(), 3, ());
+        stop = routePoints[1].m_position;
+      }
+      m_routingSession.SetTrackCorridor(detour.m_centerline);
+      points = track_following::MakeDetourCheckpoints(detour.m_centerline, points.front(), stop);
+      state.m_approachLegs = points[1] == detour.m_centerline.front() ? 1 : 2;
+    }
+    else
+    {
+      ASSERT_EQUAL(routePoints.size(), 2, ());
+      m_routingSession.SetTrackCorridor(state.m_centerline);
+      points = track_following::MakeCheckpoints(state.m_centerline, points.front());
+      state.m_approachLegs = 0;
+    }
     state.m_checkpointsCount = points.size();
   }
   else
@@ -1612,6 +1725,103 @@ std::optional<m2::PointD> RoutingManager::GetRoutePointAtDistance(double distanc
   auto const & distances = route->GetSegDistanceMeters();
   auto const & points = route->GetPoly().GetPoints();
   return m2::InterpolatePointAtDistance(distances, points, distanceMeters);
+}
+
+std::optional<double> RoutingManager::GetRouteDistanceFromBeginMeters() const
+{
+  auto const * route = m_routingSession.GetRoute();
+  if (!route || !route->IsValid())
+    return std::nullopt;
+
+  return route->GetCurrentDistanceFromBeginMeters();
+}
+
+std::optional<m2::AnyRectD> RoutingManager::GetRouteRectBetween(double fromMeters, double toMeters,
+                                                                ang::AngleD const & angle) const
+{
+  auto const * route = m_routingSession.GetRoute();
+  if (!route || !route->IsValid())
+    return std::nullopt;
+
+  if (fromMeters > toMeters)
+    std::swap(fromMeters, toMeters);
+
+  auto const & distances = route->GetSegDistanceMeters();
+  auto const & points = route->GetPoly().GetPoints();
+
+  // Everything is measured in the frame the screen is rotated into, anchored at the first end.
+  auto const origin = m2::InterpolatePointAtDistance(distances, points, fromMeters);
+  m2::AnyRectD const frame(origin, angle, m2::RectD());
+
+  m2::RectD local;
+  local.Add(frame.ConvertTo(origin));
+  local.Add(frame.ConvertTo(m2::InterpolatePointAtDistance(distances, points, toMeters)));
+
+  // The route between the two ends can bulge well outside the box they span.
+  for (size_t i = 0; i < distances.size(); ++i)
+  {
+    if (distances[i] <= fromMeters)
+      continue;
+    if (distances[i] >= toMeters)
+      break;
+    local.Add(frame.ConvertTo(points[i + 1]));
+  }
+
+  // Keep the ends and their markers comfortably clear of the screen edges.
+  double constexpr kPadding = 1.2;
+  local.Scale(kPadding);
+
+  // Zooming to a hairline rect would jump to the maximum zoom, which is what scrubbing right at the
+  // current position would otherwise do.
+  double constexpr kMinSizeMeters = 200.0;
+  double const minSize = mercator::MetersToMercator(kMinSizeMeters);
+  local.Inflate(std::max(0.0, (minSize - local.SizeX()) / 2.0), std::max(0.0, (minSize - local.SizeY()) / 2.0));
+
+  return m2::AnyRectD(origin, angle, local);
+}
+
+std::optional<m2::RectD> RoutingManager::GetRouteAheadRect(double maxAheadMeters) const
+{
+  auto const fromMeters = GetRouteDistanceFromBeginMeters();
+  if (!fromMeters)
+    return std::nullopt;
+
+  // Axis aligned: this rect is asked for by search, which has no screen orientation to fit.
+  auto const rect = GetRouteRectBetween(*fromMeters, *fromMeters + maxAheadMeters, ang::AngleD(0.0));
+  if (!rect)
+    return std::nullopt;
+
+  return rect->GetGlobalRect();
+}
+
+std::optional<RoutingManager::RoutePosition> RoutingManager::GetRoutePosition(m2::PointD const & point) const
+{
+  auto const * route = m_routingSession.GetRoute();
+  if (!route || !route->IsValid())
+    return std::nullopt;
+
+  auto const & points = route->GetPoly().GetPoints();
+
+  size_t closestSegment = 0;
+  m2::PointD closestPoint;
+  double minSquaredDistance = std::numeric_limits<double>::max();
+  for (size_t i = 1; i < points.size(); ++i)
+  {
+    auto const projection = m2::ParametrizedSegment<m2::PointD>(points[i - 1], points[i]).ClosestPointTo(point);
+    double const squaredDistance = projection.SquaredLength(point);
+    if (squaredDistance >= minSquaredDistance)
+      continue;
+
+    minSquaredDistance = squaredDistance;
+    closestSegment = i;
+    closestPoint = projection;
+  }
+
+  // Segment distances are cumulative and given for the far end of each segment.
+  auto const & distances = route->GetSegDistanceMeters();
+  double const toSegment = closestSegment > 1 ? distances[closestSegment - 2] : 0.0;
+  return RoutePosition{toSegment + mercator::DistanceOnEarth(points[closestSegment - 1], closestPoint),
+                       mercator::DistanceOnEarth(point, closestPoint)};
 }
 
 void RoutingManager::SetRouter(RouterType type)

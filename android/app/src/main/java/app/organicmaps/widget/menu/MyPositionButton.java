@@ -3,6 +3,7 @@ package app.organicmaps.widget.menu;
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.content.res.Resources;
+import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.util.SparseArray;
 import android.view.View;
@@ -32,6 +33,10 @@ public class MyPositionButton
 
   private final int mFollowPaddingShift;
 
+  private int mMode;
+  private boolean mLowPowerMode;
+  private float mScale = 1f;
+
   public MyPositionButton(@NonNull View button, @NonNull View.OnClickListener listener)
   {
     mButton = (FloatingActionButton) button;
@@ -42,8 +47,22 @@ public class MyPositionButton
     update(locationMode);
   }
 
+  public void setLowPowerMode(boolean enabled)
+  {
+    mLowPowerMode = enabled;
+    update(mMode);
+  }
+
+  /** The button size itself is scaled by the map buttons controller, the icon in it here. */
+  public void setScale(float scale)
+  {
+    mScale = scale;
+    update(mMode);
+  }
+
   public void update(int mode)
   {
+    mMode = mode;
     Drawable image = mIcons.get(mode);
     @AttrRes
     int colorAttr = R.attr.iconTint;
@@ -77,8 +96,9 @@ public class MyPositionButton
     }
 
     mButton.setImageDrawable(image);
-    mButton.setMaxImageSize((int) resources.getDimension(sizeDimen));
-    ImageViewCompat.setImageTintList(mButton, ColorStateList.valueOf(ThemeUtils.getColor(context, colorAttr)));
+    mButton.setMaxImageSize(Math.round(resources.getDimension(sizeDimen) * mScale));
+    ImageViewCompat.setImageTintList(
+        mButton, ColorStateList.valueOf(mLowPowerMode ? Color.WHITE : ThemeUtils.getColor(context, colorAttr)));
     updatePadding(mode);
 
     if (mode == LocationState.PENDING_POSITION)

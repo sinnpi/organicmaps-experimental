@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<osm version="0.6" generator="Organic Maps tests">
+  <!-- A bidirectional loop in Novosibirsk; each side has its own way id. -->
+  <node id="1" lat="55.0700" lon="82.9300"/>
+  <node id="2" lat="55.0700" lon="82.9400"/>
+  <node id="3" lat="55.0800" lon="82.9400"/>
+  <node id="4" lat="55.0800" lon="82.9300"/>
+  <way id="100">
+    <nd ref="1"/><nd ref="2"/>
+    <tag k="highway" v="residential"/>
+  </way>
+  <way id="200">
+    <nd ref="2"/><nd ref="3"/>
+    <tag k="highway" v="residential"/>
+  </way>
+  <way id="300">
+    <nd ref="3"/><nd ref="4"/>
+    <tag k="highway" v="residential"/>
+  </way>
+  <way id="400">
+    <nd ref="4"/><nd ref="1"/>
+    <tag k="highway" v="residential"/>
+  </way>
+</osm>

@@ -30,6 +30,8 @@
       app:trackCornerRadius="@dimen/nav_progress_head"
       app:trackThickness="@dimen/nav_progress"
       app:trackColor="@color/bg_routing_progress" />
+
+    <include layout="@layout/nav_elevation_profile" />
   </LinearLayout>
 
   <LinearLayout

@@ -563,6 +563,7 @@ public class MwmActivity extends BaseMwmFragmentActivity
   private void refreshLightStatusBar()
   {
     UiUtils.setLightStatusBar(this, !(ThemeUtils.isDarkTheme(this) || RoutingController.get().isPlanning()
+                                      || (mNavigationController != null && mNavigationController.isLowPowerMode())
                                       || ChoosePositionMode.get() != ChoosePositionMode.None));
   }
 
@@ -735,6 +736,11 @@ public class MwmActivity extends BaseMwmFragmentActivity
   @Override
   public void onSearchCanceled()
   {
+    // The navigation search wheel reads the running search to decide what its button does, and
+    // nothing else cancels the wheel's search: the sheet, which does it when it closes, never
+    // opened. Leaving the query behind would leave the button stuck cancelling a search that is no
+    // longer shown, with no way back to the wheel.
+    SearchEngine.INSTANCE.cancelInteractiveSearch();
     mMapButtonsViewModel.setSearchOption(null);
     forceCloseSearchFragment();
   }
@@ -746,6 +752,13 @@ public class MwmActivity extends BaseMwmFragmentActivity
     {
     case zoomIn -> Map.zoomIn();
     case zoomOut -> Map.zoomOut();
+    case oledPowerSave ->
+    {
+      Config.setOledPowerSaveEnabled(!Config.isOledPowerSaveEnabled());
+      mNavigationController.refreshLowPowerMode();
+      makeNavigationBarTransparentInLightMode();
+      ThemeSwitcher.INSTANCE.synchronizeApplicationTheme();
+    }
     case myPosition ->
     {
       Logger.i(LOCATION_TAG, "The location button pressed");
@@ -953,6 +966,9 @@ public class MwmActivity extends BaseMwmFragmentActivity
       mOnmapDownloader.onResume();
 
     mNavigationController.refresh();
+    if (RoutingController.get().isNavigating())
+      mMapButtonsViewModel.setButtonsHidden(false);
+    makeNavigationBarTransparentInLightMode();
     refreshLightStatusBar();
 
     MwmApplication.from(this).getSensorHelper().addListener(this);
@@ -1029,6 +1045,23 @@ public class MwmActivity extends BaseMwmFragmentActivity
   }
 
   @Override
+  public boolean dispatchTouchEvent(MotionEvent ev)
+  {
+    if (mNavigationController != null)
+    {
+      // Bracketed on the first touch down and the last touch up rather than counted per event: a
+      // drag along the elevation profile is one long gesture, and must keep the display at its full
+      // refresh rate for all of it.
+      final int action = ev.getActionMasked();
+      if (action == MotionEvent.ACTION_DOWN)
+        mNavigationController.onInteractionStarted();
+      else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL)
+        mNavigationController.onInteractionEnded();
+    }
+    return super.dispatchTouchEvent(ev);
+  }
+
+  @Override
   public void onBackPressed()
   {
     if (!handleBackPress())
@@ -1049,7 +1082,8 @@ public class MwmActivity extends BaseMwmFragmentActivity
   public boolean handleBackPress()
   {
     final RoutingController routingController = RoutingController.get();
-    return (closeBottomSheet(MAIN_MENU_ID) || closeBottomSheet(LAYERS_MENU_ID) || collapseNavMenu() || closePlacePage()
+    return (closeBottomSheet(MAIN_MENU_ID) || closeBottomSheet(LAYERS_MENU_ID)
+            || mNavigationController.handleBackPress() || collapseNavMenu() || closePlacePage()
             || closePositionChooser() || closeSearchFragment() || routingController.resetToPlanningStateIfNavigating()
             || routingController.cancel());
   }
@@ -1121,9 +1155,11 @@ public class MwmActivity extends BaseMwmFragmentActivity
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O)
       return;
     final boolean isLightMode = !app.organicmaps.sdk.util.Utils.isDarkMode(this);
+    final boolean lowPowerMode = mNavigationController != null && mNavigationController.isLowPowerMode();
     final Window window = getWindow();
     window.setNavigationBarColor(Color.TRANSPARENT);
-    new WindowInsetsControllerCompat(window, window.getDecorView()).setAppearanceLightNavigationBars(isLightMode);
+    new WindowInsetsControllerCompat(window, window.getDecorView())
+        .setAppearanceLightNavigationBars(isLightMode && !lowPowerMode);
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
       window.setNavigationBarContrastEnforced(false);
   }
@@ -1182,7 +1218,11 @@ public class MwmActivity extends BaseMwmFragmentActivity
     if (mDisplayManager.isDeviceDisplayUsed())
     {
       mMapController.updateBottomWidgetsOffset(offsetX, offsetY);
-      mMapController.updateMyPositionRoutingOffset(offsetY);
+      // My position is placed within the visible viewport, which the navigation UI narrows down to
+      // the free part of the screen: whatever it already leaves out must not be counted twice.
+      final int viewportBottomInset =
+          mNavigationController == null ? 0 : mNavigationController.getViewportBottomInset();
+      mMapController.updateMyPositionRoutingOffset(Math.max(0, offsetY - viewportBottomInset));
     }
   }
 
@@ -1194,6 +1234,7 @@ public class MwmActivity extends BaseMwmFragmentActivity
     if (controller.isNavigating())
     {
       mNavigationController.show(true);
+      mMapButtonsViewModel.setButtonsHidden(false);
       mMapButtonsViewModel.setBottomButtonsHidden(true);
       return;
     }
@@ -1283,10 +1324,14 @@ public class MwmActivity extends BaseMwmFragmentActivity
   public void onNavigationCancelled()
   {
     closeFloatingToolbarsAndPanels();
+    mNavigationController.refreshLowPowerMode();
     ThemeSwitcher.INSTANCE.synchronizeApplicationTheme();
     ThemeSwitcher.INSTANCE.synchronizeMapStyle(this, mMapController.isRenderingActive());
+    makeNavigationBarTransparentInLightMode();
     NavigationService.stopService(this);
+    SearchEngine.INSTANCE.cancelInteractiveSearch();
     mMapButtonsViewModel.setSearchOption(null);
+    mMapButtonsViewModel.setButtonsHidden(false);
     mMapButtonsViewModel.setLayoutMode(MapButtonsController.LayoutMode.regular);
     refreshLightStatusBar();
     Utils.keepScreenOn(Config.isKeepScreenOnEnabled(), getWindow());
@@ -1298,6 +1343,8 @@ public class MwmActivity extends BaseMwmFragmentActivity
     {
       ThemeSwitcher.INSTANCE.synchronizeApplicationTheme();
       ThemeSwitcher.INSTANCE.synchronizeMapStyle(this, mMapController.isRenderingActive());
+      mNavigationController.refreshLowPowerMode();
+      mMapButtonsViewModel.setButtonsHidden(false);
       Utils.keepScreenOn(true, getWindow());
     }
     mMapButtonsViewModel.setLayoutMode(layoutMode);
@@ -1311,6 +1358,9 @@ public class MwmActivity extends BaseMwmFragmentActivity
     ThemeSwitcher.INSTANCE.synchronizeApplicationTheme();
     ThemeSwitcher.INSTANCE.synchronizeMapStyle(this, mMapController.isRenderingActive());
     mMapButtonsViewModel.setLayoutMode(MapButtonsController.LayoutMode.navigation);
+    mNavigationController.refreshLowPowerMode();
+    mMapButtonsViewModel.setButtonsHidden(false);
+    makeNavigationBarTransparentInLightMode();
     refreshLightStatusBar();
 
     // Don't start the background navigation service without fine location.
@@ -1345,11 +1395,15 @@ public class MwmActivity extends BaseMwmFragmentActivity
   public void onResetToPlanningState()
   {
     closeFloatingToolbarsAndPanels();
+    mNavigationController.refreshLowPowerMode();
     ThemeSwitcher.INSTANCE.synchronizeApplicationTheme();
     ThemeSwitcher.INSTANCE.synchronizeMapStyle(this, mMapController.isRenderingActive());
     NavigationService.stopService(this);
+    SearchEngine.INSTANCE.cancelInteractiveSearch();
     mMapButtonsViewModel.setSearchOption(null);
+    mMapButtonsViewModel.setButtonsHidden(false);
     mMapButtonsViewModel.setLayoutMode(MapButtonsController.LayoutMode.planning);
+    makeNavigationBarTransparentInLightMode();
     refreshLightStatusBar();
   }
 
@@ -1376,7 +1430,9 @@ public class MwmActivity extends BaseMwmFragmentActivity
 
   @Override
   public void onBuiltRoute()
-  {}
+  {
+    mNavigationController.refreshElevationData();
+  }
 
   @Override
   public void onCommonBuildError(int lastResultCode, @NonNull String[] lastMissingMaps)

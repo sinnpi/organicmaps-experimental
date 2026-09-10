@@ -60,6 +60,9 @@ public:
   /// Sets the centerline of an imported track the route should stay close to (track-following
   /// navigation). Unlike guides this is not consumed by a single request: it stays in effect until
   /// cleared with an empty vector, so rebuilds after a deviation keep following the same track.
+  /// Checkpoints normally come from MakeTrackCheckpoints. A detour may prefix one or two extra
+  /// checkpoints: current position, optional stop, then centerline.front() as the rejoin point.
+  /// These approach legs use normal routing, without the corridor.
   /// Routers with no notion of a track corridor ignore it.
   virtual void SetTrackCorridor(std::vector<m2::PointD> && /* centerline */) {}
 

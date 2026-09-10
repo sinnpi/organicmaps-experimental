@@ -1,5 +1,7 @@
 #include "map/track_following.hpp"
 
+#include "routing/track_checkpoints.hpp"
+
 #include "geometry/mercator.hpp"
 #include "geometry/parametrized_segment.hpp"
 #include "geometry/simplification.hpp"
@@ -26,6 +28,16 @@ namespace
 // free of any penalty at all.
 double constexpr kSimplificationToleranceM = 10.0;
 double constexpr kMinTrackRemainderM = 1.0;
+// At a loop's meeting point, GPS noise must not select the returning leg instead of the outgoing one.
+double constexpr kLoopJoinRadiusM = 50.0;
+
+double LengthM(std::vector<m2::PointD> const & points)
+{
+  double lengthM = 0.0;
+  for (size_t i = 1; i < points.size(); ++i)
+    lengthM += mercator::DistanceOnEarth(points[i - 1], points[i]);
+  return lengthM;
+}
 
 bool IsSamePoint(m2::PointD const & lhs, m2::PointD const & rhs)
 {
@@ -126,10 +138,9 @@ std::vector<m2::PointD> SliceBetween(std::vector<m2::PointD> const & points, Clo
   return slice;
 }
 
-std::vector<m2::PointD> GetRemainingPoints(kml::TrackGeometry const & line, Direction direction,
+std::vector<m2::PointD> GetRemainingPoints(std::vector<m2::PointD> const & directed,
                                            ClosestProjection const & projection)
 {
-  auto const directed = GetDirectedPoints(line, direction);
   ASSERT_LESS(projection.m_segmentIndex + 1, directed.size(), ());
 
   std::vector<m2::PointD> remaining;
@@ -158,10 +169,7 @@ std::optional<Plan> MakePlanFromPoints(std::vector<m2::PointD> const & points, s
   if (points.size() < 2)
     return std::nullopt;
 
-  double lengthM = 0.0;
-  for (size_t i = 1; i < points.size(); ++i)
-    lengthM += mercator::DistanceOnEarth(points[i - 1], points[i]);
-  if (lengthM < kMinTrackRemainderM)
+  if (LengthM(points) < kMinTrackRemainderM)
     return std::nullopt;
 
   auto simplified = Simplify(points);
@@ -179,7 +187,18 @@ std::optional<Plan> MakePlan(kml::MultiGeometry const & geometry, m2::PointD con
   if (!projection)
     return std::nullopt;
 
-  auto const remaining = GetRemainingPoints(geometry.m_lines[projection->m_lineIndex], direction, *projection);
+  auto const & line = geometry.m_lines[projection->m_lineIndex];
+  auto const directed = GetDirectedPoints(line, direction);
+  // This is only the initial selection, not navigation/rebuilding. Near the shared start/finish,
+  // following a loop means going around it in the requested direction, not finishing immediately.
+  if (mercator::DistanceOnEarth(currentPosition, directed.front()) <= kLoopJoinRadiusM &&
+      mercator::DistanceOnEarth(directed.front(), directed.back()) <= 2.0 * kLoopJoinRadiusM &&
+      LengthM(directed) > 4.0 * kLoopJoinRadiusM)
+  {
+    return MakePlanFromPoints(directed, projection->m_lineIndex);
+  }
+
+  auto const remaining = GetRemainingPoints(directed, *projection);
   return MakePlanFromPoints(remaining, projection->m_lineIndex);
 }
 
@@ -201,25 +220,40 @@ std::optional<Plan> MakePlanTo(kml::MultiGeometry const & geometry, m2::PointD c
   return MakePlanFromPoints(SliceBetween(points, *start, *finish), finish->m_lineIndex);
 }
 
-m2::PointD PointAtHalfLength(std::vector<m2::PointD> const & centerline)
+std::vector<m2::PointD> GetRemainingCenterline(std::vector<m2::PointD> const & centerline, size_t legIndex,
+                                               m2::PointD const & position)
 {
-  ASSERT_GREATER_OR_EQUAL(centerline.size(), 2, ());
+  auto const indices = routing::GetTrackLegIndices(centerline);
+  CHECK_LESS(legIndex + 1, indices.size(), ());
+  auto const begin = indices[legIndex];
+  std::vector<m2::PointD> const leg(centerline.begin() + begin, centerline.begin() + indices[legIndex + 1] + 1);
+  auto projection = FindClosestProjectionOnPoints(leg, position);
+  CHECK(projection, ());
+  projection->m_segmentIndex += begin;
+  auto remaining = GetRemainingPoints(centerline, *projection);
+  if (remaining.size() < 2 || LengthM(remaining) < kMinTrackRemainderM)
+    return {};
+  return remaining;
+}
 
-  double lengthM = 0.0;
-  for (size_t i = 1; i < centerline.size(); ++i)
-    lengthM += mercator::DistanceOnEarth(centerline[i - 1], centerline[i]);
+std::vector<m2::PointD> MakeDetourCenterline(std::vector<m2::PointD> const & remaining, m2::PointD const & stop)
+{
+  return GetRemainingCenterline(remaining, 0, stop);
+}
 
-  double travelledM = 0.0;
-  for (size_t i = 1; i < centerline.size(); ++i)
-  {
-    auto const legM = mercator::DistanceOnEarth(centerline[i - 1], centerline[i]);
-    if (travelledM + legM >= 0.5 * lengthM)
-    {
-      auto const fraction = legM > 0.0 ? (0.5 * lengthM - travelledM) / legM : 0.0;
-      return centerline[i - 1] + (centerline[i] - centerline[i - 1]) * fraction;
-    }
-    travelledM += legM;
-  }
-  return centerline.back();
+std::vector<m2::PointD> MakeDetourCheckpoints(std::vector<m2::PointD> const & centerline,
+                                              m2::PointD const & currentPosition, std::optional<m2::PointD> stop)
+{
+  auto points = MakeCheckpoints(centerline, centerline.front());
+  // A stop on the track is already the rejoin checkpoint, not a zero-length return leg.
+  if (stop && mercator::DistanceOnEarth(*stop, centerline.front()) >= kMinTrackRemainderM)
+    points.insert(points.begin(), *stop);
+  points.insert(points.begin(), currentPosition);
+  return points;
+}
+
+std::vector<m2::PointD> MakeCheckpoints(std::vector<m2::PointD> const & centerline, m2::PointD const & currentPosition)
+{
+  return routing::MakeTrackCheckpoints(centerline, currentPosition);
 }
 }  // namespace track_following

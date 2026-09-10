@@ -54,6 +54,12 @@ double constexpr kPreviewScreenPositionEpsInPixels = 0.5;
 
 double constexpr kInvalidDistance = -1.0;
 
+// High-contrast, mostly neutral colors for the sparse OLED navigation view. The darker outline keeps
+// the route shape legible while lighting substantially fewer subpixels than the normal colored map.
+dp::Color constexpr kLowPowerRouteColor{232, 232, 232, 255};
+dp::Color constexpr kLowPowerRouteOutlineColor{88, 88, 88, 255};
+dp::Color constexpr kLowPowerFakeRouteColor{144, 144, 144, 255};
+
 double GetPreviewGlobalEps(ScreenBase const & screen)
 {
   return std::max(screen.GetScale() * kPreviewScreenPositionEpsInPixels, 1e-12);
@@ -500,14 +506,15 @@ void RouteRenderer::RenderSubroute(ref_ptr<dp::GraphicsContext> context, ref_ptr
   gpu::RouteProgramParams params;
   frameValues.SetTo(params);
   params.m_modelView = glsl::make_mat4(adjScreen.GetShapeModelView().m_data);
-  params.m_color = glsl::ToVec4(df::GetColorConstant(style.m_color));
+  params.m_color = glsl::ToVec4(m_lowPowerMode ? kLowPowerRouteColor : df::GetColorConstant(style.m_color));
   params.m_color.a *= subrouteInfo.m_subroute->m_alphaMul;
   params.m_routeParams = glsl::vec4(currentHalfWidth, screenHalfWidth, dist, trafficShown ? 1.0f : 0.0f);
 
   // Adjust line color depending on route type and subroute distance. After the first stop point
   // route color is adjusted according to RouteMaskCar, RouteMaskBicycle or RouteMaskPedestrian properties.
-  params.m_maskColor =
-      glsl::ToVec4(GetRouteMaskColor(subrouteData->m_subroute->m_routeType, subrouteData->m_subroute->m_baseDistance));
+  params.m_maskColor = glsl::ToVec4(m_lowPowerMode ? dp::Color::Transparent()
+                                                   : GetRouteMaskColor(subrouteData->m_subroute->m_routeType,
+                                                                       subrouteData->m_subroute->m_baseDistance));
   if (style.m_pattern.m_isDashed)
   {
     params.m_pattern = glsl::vec2(static_cast<float>(screenHalfWidth * style.m_pattern.m_dashLength),
@@ -515,12 +522,14 @@ void RouteRenderer::RenderSubroute(ref_ptr<dp::GraphicsContext> context, ref_ptr
   }
   else
   {
-    params.m_outlineColor = glsl::ToVec4(df::GetColorConstant(style.m_outlineColor));
+    params.m_outlineColor =
+        glsl::ToVec4(m_lowPowerMode ? kLowPowerRouteOutlineColor : df::GetColorConstant(style.m_outlineColor));
   }
   params.m_fakeBorders =
       glsl::vec2(subrouteData->m_subroute->m_headFakeDistance, subrouteData->m_subroute->m_tailFakeDistance);
-  params.m_fakeColor = glsl::ToVec4(df::GetColorConstant(kRouteFakeColor));
-  params.m_fakeOutlineColor = glsl::ToVec4(df::GetColorConstant(kRouteFakeOutlineColor));
+  params.m_fakeColor = glsl::ToVec4(m_lowPowerMode ? kLowPowerFakeRouteColor : df::GetColorConstant(kRouteFakeColor));
+  params.m_fakeOutlineColor =
+      glsl::ToVec4(m_lowPowerMode ? kLowPowerRouteOutlineColor : df::GetColorConstant(kRouteFakeOutlineColor));
 
   ref_ptr<dp::GpuProgram> prg =
       mng->GetProgram(style.m_pattern.m_isDashed ? gpu::Program::RouteDash : gpu::Program::Route);
@@ -561,8 +570,9 @@ void RouteRenderer::RenderSubrouteArrows(ref_ptr<dp::GraphicsContext> context, r
   params.m_arrowHalfWidth = arrowHalfWidth;
 
   // Adjust arrow color depending on route type and subroute distance
-  params.m_maskColor =
-      glsl::ToVec4(GetArrowMaskColor(subrouteInfo.m_subroute->m_routeType, subrouteInfo.m_subroute->m_baseDistance));
+  params.m_maskColor = glsl::ToVec4(m_lowPowerMode ? dp::Color::White()
+                                                   : GetArrowMaskColor(subrouteInfo.m_subroute->m_routeType,
+                                                                       subrouteInfo.m_subroute->m_baseDistance));
 
   ref_ptr<dp::GpuProgram> prg = mng->GetProgram(gpu::Program::RouteArrow);
   prg->Bind();
@@ -605,8 +615,9 @@ void RouteRenderer::RenderSubrouteMarkers(ref_ptr<dp::GraphicsContext> context, 
 
   // Adjust color depending on route type and subroute distance. After the first stop point
   // marker color is adjusted according to RouteMaskCar, RouteMaskBicycle or RouteMaskPedestrian properties.
-  params.m_maskColor =
-      glsl::ToVec4(GetRouteMaskColor(subrouteInfo.m_subroute->m_routeType, subrouteInfo.m_subroute->m_baseDistance));
+  params.m_maskColor = glsl::ToVec4(m_lowPowerMode ? dp::Color::White()
+                                                   : GetRouteMaskColor(subrouteInfo.m_subroute->m_routeType,
+                                                                       subrouteInfo.m_subroute->m_baseDistance));
 
   ref_ptr<dp::GpuProgram> prg = mng->GetProgram(gpu::Program::RouteMarker);
   prg->Bind();
@@ -812,6 +823,11 @@ void RouteRenderer::UpdateDistanceFromBegin(double distanceFromBegin)
 void RouteRenderer::SetFollowingEnabled(bool enabled)
 {
   m_followingEnabled = enabled;
+}
+
+void RouteRenderer::SetLowPowerMode(bool enabled)
+{
+  m_lowPowerMode = enabled;
 }
 
 void RouteRenderer::AddPreviewSegment(dp::DrapeID id, PreviewInfo && info)

@@ -53,6 +53,9 @@ public:
   void SetStaticTextures(drape_ptr<PostprocessStaticTextures> && textures);
 
   bool IsEnabled() const;
+  // Lets the frame-reuse path stay available while following a route; see the comment on
+  // IsEnabled() in the .cpp for the trade this makes.
+  void SetFrameReuseWhileFollowingAllowed(bool allowed) { m_frameReuseWhileFollowingAllowed = allowed; }
   void SetEffectEnabled(ref_ptr<dp::GraphicsContext> context, Effect effect, bool enabled);
   bool IsEffectEnabled(Effect effect) const;
 
@@ -89,6 +92,7 @@ private:
 
   bool m_frameStarted = false;
   bool m_isRouteFollowingActive = false;
+  bool m_frameReuseWhileFollowingAllowed = false;
 };
 
 class StencilWriterGuard

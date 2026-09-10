@@ -97,6 +97,7 @@ public:
   void SetMapStyle(MapStyle mapStyle);
   void MarkMapStyle(MapStyle mapStyle);
   MapStyle GetMapStyle() const;
+  void SetLowPowerNavigationMode(bool enabled);
 
   void SetupMeasurementSystem();
 

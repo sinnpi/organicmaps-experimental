@@ -46,6 +46,12 @@ public final class Config
   private static final String KEY_DONATE_URL = "DonateUrl";
   private static final String KEY_PREF_SEARCH_HISTORY = "SearchHistoryEnabled";
   private static final String KEY_PREF_TRACK_FOLLOW = "TrackFollowEnabled";
+  private static final String KEY_PREF_NAV_ELEVATION_PROFILE = "NavElevationProfileEnabled";
+  private static final String KEY_PREF_OLED_POWER_SAVE = "OledPowerSaveEnabled";
+  private static final String KEY_PREF_MAP_BUTTONS_SCALE = "MapButtonsScale";
+  private static final String KEY_PREF_NAV_SEARCH_OPTIONS = "NavSearchOptions";
+
+  public static final int MAP_BUTTONS_SCALE_DEFAULT = 100;
 
   public static final String KEY_PREF_LAST_SEARCHED_TAB = "LastSearchTab";
 
@@ -199,6 +205,48 @@ public final class Config
   public static void setTrackFollowEnabled(boolean enabled)
   {
     setBool(KEY_PREF_TRACK_FOLLOW, enabled);
+  }
+
+  public static boolean isNavElevationProfileEnabled()
+  {
+    return getBool(KEY_PREF_NAV_ELEVATION_PROFILE);
+  }
+
+  public static void setNavElevationProfileEnabled(boolean enabled)
+  {
+    setBool(KEY_PREF_NAV_ELEVATION_PROFILE, enabled);
+  }
+
+  public static boolean isOledPowerSaveEnabled()
+  {
+    return getBool(KEY_PREF_OLED_POWER_SAVE);
+  }
+
+  public static void setOledPowerSaveEnabled(boolean enabled)
+  {
+    setBool(KEY_PREF_OLED_POWER_SAVE, enabled);
+  }
+
+  /** Size of the buttons on the map, in percent of the size they are designed with. */
+  public static int getMapButtonsScale()
+  {
+    return getInt(KEY_PREF_MAP_BUTTONS_SCALE, MAP_BUTTONS_SCALE_DEFAULT);
+  }
+
+  public static void setMapButtonsScale(int percent)
+  {
+    setInt(KEY_PREF_MAP_BUTTONS_SCALE, percent);
+  }
+
+  /** Categories the navigation search wheel offers, as comma-separated ids. Empty for the default. */
+  public static String getNavSearchOptions()
+  {
+    return getString(KEY_PREF_NAV_SEARCH_OPTIONS);
+  }
+
+  public static void setNavSearchOptions(String ids)
+  {
+    setString(KEY_PREF_NAV_SEARCH_OPTIONS, ids);
   }
 
   public static void setStatisticsEnabled(boolean enabled)

@@ -20,6 +20,8 @@
 
 #include "drape/pointers.hpp"
 
+#include "geometry/any_rect2d.hpp"
+
 #include "base/thread_checker.hpp"
 
 #include <chrono>
@@ -147,6 +149,10 @@ public:
   // going is decided by where the selected point falls relative to the user.
   PrepareTrackFollowResult PrepareTrackFollowToSelectedPoint(kml::TrackId trackId);
   bool IsTrackFollowMode() const { return m_trackFollowState.has_value(); }
+
+  bool CanAddTrackDetour() const;
+  // Keeps the track destination and adds one stop followed by a forward rejoin. BuildRoute() next.
+  bool AddTrackDetour(RouteMarkData && stop);
 
   void BuildRoute(uint32_t timeoutSec = routing::RouterDelegate::kNoTimeout);
   void SetUserCurrentPosition(m2::PointD const & position);
@@ -279,6 +285,34 @@ public:
   /// \return Nullopt if the route is invalid.
   std::optional<m2::PointD> GetRoutePointAtDistance(double distanceMeters) const;
 
+  /// \brief Distance in meters travelled along the current route.
+  /// \return Nullopt if the route is invalid.
+  std::optional<double> GetRouteDistanceFromBeginMeters() const;
+
+  /// \brief Bounding rect of the route between |fromMeters| and |toMeters|, in any order, measured
+  /// along the axes of |angle| so that a rotated screen can be filled without wasting zoom on the
+  /// corners an axis-aligned rect would add.
+  /// \return Nullopt if the route is invalid.
+  std::optional<m2::AnyRectD> GetRouteRectBetween(double fromMeters, double toMeters, ang::AngleD const & angle) const;
+
+  /// \brief Bounding rect of the way ahead: the route from the current position on, for at most
+  /// |maxAheadMeters| along it.
+  /// \return Nullopt if the route is invalid.
+  std::optional<m2::RectD> GetRouteAheadRect(double maxAheadMeters) const;
+
+  /// \brief Where a point lies with respect to the route.
+  struct RoutePosition
+  {
+    /// Distance from the start of the route to the point of it that is closest to the given point.
+    double m_alongMeters = 0.0;
+    /// Distance from the given point to the route, measured across it.
+    double m_fromRouteMeters = 0.0;
+  };
+
+  /// \brief Projects |point| onto the route.
+  /// \return Nullopt if the route is invalid.
+  std::optional<RoutePosition> GetRoutePosition(m2::PointD const & point) const;
+
   uint32_t OpenRoutePointsTransaction();
   void ApplyRoutePointsTransaction(uint32_t transactionId);
   void CancelRoutePointsTransaction(uint32_t transactionId);
@@ -372,6 +406,7 @@ private:
   std::vector<RouteMarkData> GetRoutePointsToSave() const;
 
   void ResetTrackFollowMode();
+  void UpdateTrackFollowProgress();
 
   void OnExtrapolatedLocationUpdate(location::GpsInfo const & info);
 
@@ -410,10 +445,19 @@ private:
     // Corridor the router is biased toward, not a list of points it must visit.
     // See IRouter::SetTrackCorridor.
     std::vector<m2::PointD> m_centerline;
-    // 2, or 3 for a closed track, which needs one internal via-point to pin down its direction.
+    // Includes internal shaping points used to preserve loops and repeated road visits.
     size_t m_checkpointsCount = 2;
+    // Extra normal-routing legs before the first track leg in the currently built route.
+    size_t m_approachLegs = 0;
+    struct Detour
+    {
+      std::vector<m2::PointD> m_centerline;
+      bool m_stopPassed = false;
+    };
+    std::optional<Detour> m_detour;
   };
   std::optional<TrackFollowState> m_trackFollowState;
+  uint64_t m_routingGeneration = 0;
 
   std::shared_ptr<routing::NumMwmIds> m_numMwmIDs;
   std::shared_ptr<m4::Tree<routing::NumMwmId>> m_numMwmTree;

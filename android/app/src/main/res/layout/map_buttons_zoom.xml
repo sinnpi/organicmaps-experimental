@@ -7,6 +7,12 @@
   android:layout_height="wrap_content"
   android:orientation="vertical">
   <com.google.android.material.floatingactionbutton.FloatingActionButton
+    android:id="@+id/oled_power_save"
+    style="@style/MwmWidget.MapButton.Zoom"
+    app:srcCompat="@drawable/ic_light"
+    android:layout_marginBottom="@dimen/margin_half"
+    android:contentDescription="@string/enable_oled_power_save"/>
+  <com.google.android.material.floatingactionbutton.FloatingActionButton
     android:id="@+id/nav_zoom_in"
     style="@style/MwmWidget.MapButton.Zoom"
     app:srcCompat="@drawable/ic_plus"

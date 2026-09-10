@@ -10,6 +10,7 @@ import androidx.annotation.Nullable;
 import androidx.preference.ListPreference;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceCategory;
+import androidx.preference.SeekBarPreference;
 import androidx.preference.TwoStatePreference;
 import app.organicmaps.MwmApplication;
 import app.organicmaps.R;
@@ -17,6 +18,7 @@ import app.organicmaps.downloader.OnmapDownloader;
 import app.organicmaps.editor.LanguagesFragment;
 import app.organicmaps.editor.ProfileActivity;
 import app.organicmaps.help.HelpActivity;
+import app.organicmaps.maplayer.SearchWheel;
 import app.organicmaps.sdk.Framework;
 import app.organicmaps.sdk.downloader.MapManager;
 import app.organicmaps.sdk.editor.OsmOAuth;
@@ -57,11 +59,14 @@ public class SettingsPrefsFragment extends BaseXmlSettingsFragment implements La
     initMapStylePrefsCallbacks();
     initAutoDownloadPrefsCallbacks();
     initLargeFontSizePrefsCallbacks();
+    initMapButtonsScalePrefsCallbacks();
     initTransliterationPrefsCallbacks();
     init3dModePrefsCallbacks();
     initPerspectivePrefsCallbacks();
     initAutoZoomPrefsCallbacks();
     initTrackFollowPrefsCallbacks();
+    initNavElevationProfilePrefsCallbacks();
+    initNavSearchOptionsPrefsCallbacks();
     initLoggingEnabledPrefsCallbacks();
     initEmulationBadStorage();
     initUseMobileDataPrefsCallbacks();
@@ -265,6 +270,70 @@ public class SettingsPrefsFragment extends BaseXmlSettingsFragment implements La
       Config.setTrackFollowEnabled((boolean) newValue);
       return true;
     });
+  }
+
+  private void initNavElevationProfilePrefsCallbacks()
+  {
+    final TwoStatePreference pref = getPreference(getString(R.string.pref_nav_elevation_profile));
+    pref.setChecked(Config.isNavElevationProfileEnabled());
+    pref.setOnPreferenceChangeListener((preference, newValue) -> {
+      Config.setNavElevationProfileEnabled((boolean) newValue);
+      return true;
+    });
+  }
+
+  private void initMapButtonsScalePrefsCallbacks()
+  {
+    final SeekBarPreference pref = getPreference(getString(R.string.pref_map_buttons_scale));
+    pref.setValue(Config.getMapButtonsScale());
+    pref.setOnPreferenceChangeListener((preference, newValue) -> {
+      Config.setMapButtonsScale((int) newValue);
+      return true;
+    });
+  }
+
+  private void initNavSearchOptionsPrefsCallbacks()
+  {
+    final Preference pref = getPreference(getString(R.string.pref_nav_search_options));
+    pref.setSummary(R.string.pref_nav_search_options_summary);
+    pref.setOnPreferenceClickListener(preference -> {
+      final List<SearchWheel.SearchOption> selected = new ArrayList<>(SearchWheel.SearchOption.getSelected());
+      while (selected.size() < SearchWheel.SearchOption.MAX_SELECTED)
+        selected.add(SearchWheel.SearchOption.NONE);
+      final CharSequence[] slots = new CharSequence[selected.size()];
+      for (int i = 0; i < slots.length; ++i)
+        slots[i] = getString(R.string.nav_search_slot, i + 1, getString(selected.get(i).getQueryId()));
+      new MaterialAlertDialogBuilder(requireContext())
+          .setTitle(R.string.pref_nav_search_options_title)
+          .setItems(slots, (dialog, slot) -> showNavSearchSlotPicker(selected, slot))
+          .setNegativeButton(R.string.cancel, null)
+          .show();
+      return true;
+    });
+  }
+
+  private void showNavSearchSlotPicker(@NonNull List<SearchWheel.SearchOption> selected, int slot)
+  {
+    final SearchWheel.SearchOption[] catalogue = SearchWheel.SearchOption.values();
+    final CharSequence[] entries = new CharSequence[catalogue.length];
+    for (int i = 0; i < catalogue.length; ++i)
+      entries[i] = getString(catalogue[i].getQueryId());
+    new MaterialAlertDialogBuilder(requireContext())
+        .setTitle(getString(R.string.nav_search_slot, slot + 1, getString(selected.get(slot).getQueryId())))
+        .setSingleChoiceItems(entries, selected.get(slot).ordinal(),
+                              (dialog, which) -> {
+                                final List<SearchWheel.SearchOption> updated = new ArrayList<>(selected);
+                                updated.set(slot, catalogue[which]);
+                                if (updated.stream().allMatch(option -> option == SearchWheel.SearchOption.NONE))
+                                {
+                                  Utils.showSnackbar(requireView(), getString(R.string.pref_nav_search_options_empty));
+                                  return;
+                                }
+                                SearchWheel.SearchOption.setSelected(updated);
+                                dialog.dismiss();
+                              })
+        .setNegativeButton(R.string.cancel, null)
+        .show();
   }
 
   private void initPlayServicesPrefsCallbacks()

@@ -1,5 +1,7 @@
 package app.organicmaps.search;
 
+import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.location.Location;
@@ -10,6 +12,9 @@ import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
+import android.view.WindowManager;
+import android.widget.Toast;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.CallSuper;
@@ -29,7 +34,9 @@ import app.organicmaps.R;
 import app.organicmaps.downloader.CountrySuggestFragment;
 import app.organicmaps.sdk.Framework;
 import app.organicmaps.sdk.downloader.MapManager;
+import app.organicmaps.sdk.location.LocationHelper;
 import app.organicmaps.sdk.location.LocationListener;
+import app.organicmaps.sdk.routing.JunctionInfo;
 import app.organicmaps.sdk.routing.RoutingController;
 import app.organicmaps.sdk.search.SearchEngine;
 import app.organicmaps.sdk.search.SearchListener;
@@ -485,9 +492,11 @@ public class SearchFragment extends Fragment implements SearchListener, Categori
   {
     if (mHiddenCommands.isEmpty())
     {
-      mHiddenCommands.addAll(Arrays.asList(
-          new BadStorageCommand("?emulateBadStorage", requireContext()), new JavaCrashCommand("?emulateJavaCrash"),
-          new NativeCrashCommand("?emulateNativeCrash"), new PushTokenCommand("?pushToken")));
+      mHiddenCommands.addAll(
+          Arrays.asList(new BadStorageCommand("?emulateBadStorage", requireContext()),
+                        new JavaCrashCommand("?emulateJavaCrash"), new NativeCrashCommand("?emulateNativeCrash"),
+                        new PushTokenCommand("?pushToken"), new RouteSimulationCommand(requireContext()),
+                        new SensorRateCommand(requireContext()), new RefreshRateCommand(requireActivity())));
     }
 
     return mHiddenCommands;
@@ -852,6 +861,219 @@ public class SearchFragment extends Fragment implements SearchListener, Categori
     @Override
     void executeInternal()
     {}
+  }
+
+  /**
+   * Replays the active route from a simulated location provider instead of the GNSS hardware, so
+   * that repeated runs cover identical ground -- see docs/POWER_MEASUREMENT.md. Lives here rather
+   * than with the native debug commands because the simulated provider is on the Java side.
+   * Accepts {@code ?simulate}, {@code ?simulate=<km/h>} and {@code ?no-simulate}.
+   */
+  private static class RouteSimulationCommand implements HiddenCommand
+  {
+    private static final String START = "?simulate";
+    private static final String STOP = "?no-simulate";
+    private static final double DEFAULT_SPEED_KMH = 18.0;
+    // Junctions already carry the route's shape, so this only caps the spacing of the polyline the
+    // provider interpolates along.
+    private static final double JUNCTION_SPACING_M = 500.0;
+
+    @NonNull
+    private final Context mContext;
+
+    RouteSimulationCommand(@NonNull Context context)
+    {
+      mContext = context;
+    }
+
+    @Override
+    public boolean execute(@NonNull String command)
+    {
+      final LocationHelper locationHelper = MwmApplication.from(mContext).getLocationHelper();
+
+      if (command.equals(STOP))
+      {
+        if (locationHelper.isNavigationSimulationActive())
+        {
+          locationHelper.stopNavigationSimulation();
+          toast("Route simulation stopped");
+        }
+        else
+          toast("Route simulation is not running");
+        return true;
+      }
+
+      if (!command.equals(START) && !command.startsWith(START + "="))
+        return false;
+
+      double speedKmH = DEFAULT_SPEED_KMH;
+      if (command.length() > START.length())
+      {
+        try
+        {
+          speedKmH = Double.parseDouble(command.substring(START.length() + 1));
+        }
+        catch (NumberFormatException e)
+        {
+          toast("Expected " + START + "=<km/h>");
+          return true;
+        }
+        if (speedKmH <= 0)
+        {
+          toast("Speed must be positive");
+          return true;
+        }
+      }
+
+      if (locationHelper.isNavigationSimulationActive())
+      {
+        toast("Route simulation is already running");
+        return true;
+      }
+
+      final JunctionInfo[] points = Framework.nativeGetRouteJunctionPoints(JUNCTION_SPACING_M);
+      if (points == null || points.length < 2)
+      {
+        toast("Start navigating first");
+        return true;
+      }
+
+      locationHelper.startNavigationSimulation(points, speedKmH / 3.6);
+      toast("Simulating the route at " + speedKmH + " km/h");
+      return true;
+    }
+
+    private void toast(@NonNull String message)
+    {
+      Toast.makeText(mContext, message, Toast.LENGTH_SHORT).show();
+    }
+  }
+
+  /**
+   * Requests a display refresh rate for the window, or restores the system default with
+   * {@code ?refresh-rate} alone. The swapchain presents FIFO, so the panel keeps refreshing at its
+   * own rate no matter how slowly the renderer produces frames: without pinning this, a frame-rate
+   * sweep measures our render cost confounded by the panel and compositor.
+   */
+  private static class RefreshRateCommand implements HiddenCommand
+  {
+    private static final String COMMAND = "?refresh-rate";
+
+    @NonNull
+    private final Activity mActivity;
+
+    RefreshRateCommand(@NonNull Activity activity)
+    {
+      mActivity = activity;
+    }
+
+    @Override
+    public boolean execute(@NonNull String command)
+    {
+      if (!command.equals(COMMAND) && !command.startsWith(COMMAND + "="))
+        return false;
+
+      float hz = 0;
+      if (command.length() > COMMAND.length())
+      {
+        try
+        {
+          hz = Float.parseFloat(command.substring(COMMAND.length() + 1));
+        }
+        catch (NumberFormatException e)
+        {
+          toast("Expected " + COMMAND + "=<hz>");
+          return true;
+        }
+        if (hz <= 0)
+        {
+          toast("Refresh rate must be positive");
+          return true;
+        }
+      }
+
+      final Window window = mActivity.getWindow();
+      final WindowManager.LayoutParams params = window.getAttributes();
+      // 0 hands the choice back to the system.
+      params.preferredRefreshRate = hz;
+      window.setAttributes(params);
+
+      toast(hz > 0 ? "Requested " + hz + " Hz" : "Refresh rate back to system default");
+      return true;
+    }
+
+    private void toast(@NonNull String message)
+    {
+      Toast.makeText(mActivity, message, Toast.LENGTH_SHORT).show();
+    }
+  }
+
+  /**
+   * Makes the location and compass rates measurable without a rebuild. Navigation normally polls
+   * location at 10 Hz and the compass at {@code SENSOR_DELAY_UI}; both are candidates for large
+   * power savings, so both need to be sweepable -- see docs/POWER_MEASUREMENT.md.
+   * Accepts {@code ?gps-interval=<ms>}, {@code ?gps-interval} (restore default),
+   * {@code ?no-compass} and {@code ?compass}.
+   */
+  private static class SensorRateCommand implements HiddenCommand
+  {
+    private static final String INTERVAL = "?gps-interval";
+    private static final String NO_COMPASS = "?no-compass";
+    private static final String COMPASS = "?compass";
+
+    @NonNull
+    private final Context mContext;
+
+    SensorRateCommand(@NonNull Context context)
+    {
+      mContext = context;
+    }
+
+    @Override
+    @SuppressLint("MissingPermission")
+    public boolean execute(@NonNull String command)
+    {
+      final LocationHelper locationHelper = MwmApplication.from(mContext).getLocationHelper();
+
+      if (command.equals(NO_COMPASS) || command.equals(COMPASS))
+      {
+        final boolean enabled = command.equals(COMPASS);
+        locationHelper.setCompassEnabled(enabled);
+        toast(enabled ? "Compass enabled" : "Compass disabled");
+        return true;
+      }
+
+      if (!command.equals(INTERVAL) && !command.startsWith(INTERVAL + "="))
+        return false;
+
+      long intervalMs = 0;
+      if (command.length() > INTERVAL.length())
+      {
+        try
+        {
+          intervalMs = Long.parseLong(command.substring(INTERVAL.length() + 1));
+        }
+        catch (NumberFormatException e)
+        {
+          toast("Expected " + INTERVAL + "=<ms>");
+          return true;
+        }
+        if (intervalMs < 0)
+        {
+          toast("Interval must not be negative");
+          return true;
+        }
+      }
+
+      locationHelper.setIntervalOverride(intervalMs);
+      toast(intervalMs > 0 ? "Location interval " + intervalMs + " ms" : "Location interval back to default");
+      return true;
+    }
+
+    private void toast(@NonNull String message)
+    {
+      Toast.makeText(mContext, message, Toast.LENGTH_SHORT).show();
+    }
   }
 
   private class ToolbarController extends SearchToolbarController

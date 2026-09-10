@@ -37,12 +37,17 @@ double constexpr kDefaultMaxCorridorRadiusM = 500.0;
 
 TrackCorridorWorldGraph::TrackCorridorWorldGraph(WorldGraph & inner, std::vector<m2::PointD> centerline)
   : m_inner(inner)
-  , m_centerline(std::move(centerline))
   , m_maxCorridorRadiusM(kDefaultMaxCorridorRadiusM)
 {
-  CHECK_GREATER_OR_EQUAL(m_centerline.size(), 2, ());
+  SetCenterline(std::move(centerline));
+}
 
-  m_arcLengthM.resize(m_centerline.size());
+void TrackCorridorWorldGraph::SetCenterline(std::vector<m2::PointD> centerline)
+{
+  CHECK_GREATER_OR_EQUAL(centerline.size(), 2, ());
+  m_centerline = std::move(centerline);
+  m_penaltyCache.clear();
+  m_arcLengthM.assign(m_centerline.size(), 0.0);
   for (size_t i = 1; i < m_centerline.size(); ++i)
     m_arcLengthM[i] = m_arcLengthM[i - 1] + mercator::DistanceOnEarth(m_centerline[i - 1], m_centerline[i]);
 }
@@ -130,6 +135,9 @@ TrackCorridorWorldGraph::Penalty TrackCorridorWorldGraph::CalcPenalty(Segment co
 
 bool TrackCorridorWorldGraph::AdjustForCorridor(Segment const & judged, RouteWeight & weight) const
 {
+  if (m_centerline.empty())
+    return true;
+
   auto const cached = m_penaltyCache.find(judged);
   auto const & penalty = cached != m_penaltyCache.end()
                            ? cached->second
