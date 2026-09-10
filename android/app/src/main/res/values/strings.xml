@@ -943,4 +943,34 @@
     <string name="follow_track_to_here">Follow track to this point</string>
     <!-- Error shown when an imported track cannot be prepared for navigation. -->
     <string name="track_follow_unavailable">This track cannot be followed from your current position.</string>
+    <!-- Settings toggle that enables the experimental elevation profile shown while navigating. -->
+    <string name="enable_nav_elevation_profile">Show elevation profile while navigating (experimental)</string>
+    <!-- Description of the experimental setting that shows the elevation profile during navigation. -->
+    <string name="enable_nav_elevation_profile_summary">Show the terrain ahead at the bottom of the screen during navigation.</string>
+    <!-- Settings section that groups experimental features under development. -->
+    <string name="prefs_group_experimental">Experimental</string>
+    <!-- Settings toggle for a minimal true-black navigation display intended to save power on OLED screens. -->
+    <string name="enable_oled_power_save">Ultra-low-power OLED navigation (experimental)</string>
+    <!-- Description of the experimental OLED navigation setting. -->
+    <string name="enable_oled_power_save_summary">During navigation, show the route, faint nearby paths, and essential guidance on a true-black screen. Intended for OLED displays.</string>
+    <!-- Settings slider that changes how big the buttons on the map are. -->
+    <string name="pref_map_buttons_scale_title">Map buttons size</string>
+    <!-- Description of the setting that changes the size of the map buttons, shown in percent. -->
+    <string name="pref_map_buttons_scale_summary">Size of the buttons on the map, in percent of their default size.</string>
+    <!-- Experimental settings menu for configuring navigation search wheel buttons. -->
+    <string name="pref_nav_search_options_title">Navigation search buttons</string>
+    <!-- Description of the navigation search button settings. -->
+    <string name="pref_nav_search_options_summary">Choose a category or free-text search for each navigation search button.</string>
+    <!-- Shown when too many navigation search categories are selected. %d is the maximum. -->
+    <string name="pref_nav_search_options_too_many">Pick at most %d categories.</string>
+    <!-- Shown when no navigation search categories are selected. -->
+    <string name="pref_nav_search_options_empty">Keep at least one button visible.</string>
+    <!-- Option to hide a navigation search wheel slot. -->
+    <string name="nav_search_hidden">Hidden</string>
+    <!-- A numbered navigation search wheel slot followed by its current action. -->
+    <string name="nav_search_slot">Button %1$d: %2$s</string>
+    <!-- Place page action to visit a stop and then rejoin the followed track. -->
+    <string name="track_detour">Detour via here</string>
+    <!-- Shown when a detour cannot be added without losing the followed track. -->
+    <string name="track_detour_unavailable">Cannot add this stop. Resume track navigation and try again.</string>
 </resources>

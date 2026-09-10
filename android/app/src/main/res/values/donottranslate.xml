@@ -33,10 +33,15 @@
   <string name="pref_osm_profile" translatable="false">Osm profile</string>
   <string name="pref_auto_zoom" translatable="false">AutoZoom</string>
   <string name="pref_track_follow" translatable="false">TrackFollowEnabled</string>
+  <string name="pref_nav_elevation_profile" translatable="false">NavElevationProfileEnabled</string>
+  <string name="pref_oled_power_save" translatable="false">OledPowerSaveEnabled</string>
+  <string name="pref_map_buttons_scale" translatable="false">MapButtonsScale</string>
+  <string name="pref_nav_search_options" translatable="false">NavSearchOptions</string>
   <string name="pref_large_fonts_size" translatable="false">LargeFontSize</string>
   <string name="pref_use_mobile_data" translatable="false">UseMobileData</string>
   <string name="pref_settings_general" translatable="false">GeneralSettings</string>
   <string name="pref_navigation" translatable="false">Navigation</string>
+  <string name="pref_experimental" translatable="false">Experimental</string>
   <string name="pref_information" translatable="false">Information</string>
   <string name="pref_transliteration" translatable="false">Transliteration</string>
   <string name="pref_power_management" translatable="false">PowerManagment</string>

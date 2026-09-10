@@ -1213,3 +1213,9 @@
 
 /* Error shown when an imported track cannot be prepared for navigation. */
 "track_follow_unavailable" = "This track cannot be followed from your current position.";
+
+/* Settings toggle that enables the experimental elevation profile shown while navigating. */
+"enable_nav_elevation_profile" = "Show elevation profile while navigating (experimental)";
+
+/* Description of the experimental setting that shows the elevation profile during navigation. */
+"enable_nav_elevation_profile_summary" = "Show the terrain ahead at the bottom of the screen during navigation.";
