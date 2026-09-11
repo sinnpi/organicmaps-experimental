@@ -37,14 +37,15 @@ git push fork refs/tags/experimental-YYYY.MM.DD-N
 Use `git tag -s` instead if signing the release tag with your own configured key.
 Each release needs a new tag. Download APKs from this fork's **Releases** page.
 
-Forks inherit workflow files, but Actions may need enabling in the fork settings.
-The existing **Android Check** workflow supports manual runs, pushes to `master`,
-and eligible pull requests. It builds debug APKs and uploads them as temporary
-workflow artifacts. A push to another branch alone does not trigger it.
+The fork uses `master`. Actions may need enabling in the fork settings.
+Only **Experimental APK** is active. Inherited workflows are preserved under
+`.github/disabled-workflows/`, outside GitHub's active workflow directory, so
+pushes and pull requests do not run upstream CI or publishing jobs in this fork.
+To re-enable a check, review it and move its file back to `.github/workflows/`.
+After upstream merges, check for newly introduced active workflows.
 
-The upstream **Android Beta** and **Android Release** workflows depend on
-upstream-specific secrets and distribution services. They are not a ready-made
-release pipeline for this fork. Do not configure them with upstream credentials.
+Upstream publishing workflows depend on upstream-specific secrets and distribution
+services. Do not configure them with upstream credentials.
 
 Before distributing production releases, replace the test-release setup with one that:
 
