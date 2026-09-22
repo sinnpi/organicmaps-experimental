@@ -519,6 +519,8 @@
 "twentyfour_seven" = "24/7";
 "day_off_today" = "Cerrado hoy";
 "day_off" = "Cerrado";
+"midnight" = "Medianoche";
+"noon" = "Mediodía";
 "today" = "Hoy";
 "opens_in" = "Abre en %@";
 "closes_in" = "Cierra en %@";
@@ -652,6 +654,8 @@
 "planning_route_manage_route" = "Gestionar ruta";
 "button_plan" = "Planificar";
 "placepage_remove_stop" = "Eliminar parada";
+
+/* Keep it short: PlacePage button, search field hint and full-screen map point picker title shown while choosing a new intermediate stop of a route. */
 "placepage_add_stop" = "Añadir parada";
 "saved" = "Guardado";
 "error_enter_correct_name" = "Introduzca el nombre correcto";

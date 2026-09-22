@@ -519,6 +519,8 @@
 "twentyfour_seven" = "24/7";
 "day_off_today" = "Danas zatvoreno";
 "day_off" = "Zatvoreno";
+"midnight" = "Ponoć";
+"noon" = "Podne";
 "today" = "Danas";
 "opens_in" = "Otvara za %@";
 "closes_in" = "Zatvara za %@";
@@ -652,6 +654,8 @@
 "planning_route_manage_route" = "Upravljanje rutom";
 "button_plan" = "Plan";
 "placepage_remove_stop" = "Ukloni Stop";
+
+/* Keep it short: PlacePage button, search field hint and full-screen map point picker title shown while choosing a new intermediate stop of a route. */
 "placepage_add_stop" = "Dodaj stajalište";
 "saved" = "Spremljeno";
 "error_enter_correct_name" = "Molimo unesite ispravno ime";

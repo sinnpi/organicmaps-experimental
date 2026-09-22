@@ -298,7 +298,8 @@
     <string name="learn_more">Más información</string>
     <string name="planning_route_manage_route">Administrar ruta</string>
     <string name="placepage_remove_stop">Quitar Stop</string>
-    <string name="placepage_add_stop">Añadir tope</string>
+    <!-- Keep it short: PlacePage button, search field hint and full-screen map point picker title shown while choosing a new intermediate stop of a route. -->
+    <string name="placepage_add_stop">Agregar parada</string>
     <string name="drag_to_reorder">Reordenar</string>
     <!-- Alert to ask user relogin to OpenStreetMap with OAuth2 flow after OAuth1 authentication is deprecated. -->
     <string name="alert_reauth_message">Inicie sesión en OpenStreetMap para cargar automáticamente todas las ediciones de su mapa. Obtenga más información <a href="https://github.com/organicmaps/organicmaps/issues/6144">aquí</a>.</string>
@@ -465,8 +466,6 @@
     <string name="stop_track_recording">Detener grabación de pista</string>
     <!-- Title for the "Stop Without Saving" action for the alert when saving a track recording. -->
     <string name="track_recording_title">Grabación de pistas</string>
-    <!-- Title for the "Stop Without Saving" action for the alert when saving a track recording. -->
-    <string name="stop_without_saving">Parar sin ahorrar</string>
     <!-- Title for the "Stop Without Saving" action for the alert when saving a track recording. -->
     <string name="continue_recording">Seguir grabando</string>
     <!-- Title for the alert when saving a track recording. -->

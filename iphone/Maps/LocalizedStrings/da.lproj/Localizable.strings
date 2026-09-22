@@ -519,6 +519,8 @@
 "twentyfour_seven" = "Døgnet rundt";
 "day_off_today" = "Lukket i dag";
 "day_off" = "Lukket";
+"midnight" = "Midnat";
+"noon" = "Middag";
 "today" = "I dag";
 "opens_in" = "Åbner om %@";
 "closes_in" = "Lukker om %@";
@@ -652,6 +654,8 @@
 "planning_route_manage_route" = "Administrer rute";
 "button_plan" = "Planlæg";
 "placepage_remove_stop" = "Fjern stop";
+
+/* Keep it short: PlacePage button, search field hint and full-screen map point picker title shown while choosing a new intermediate stop of a route. */
 "placepage_add_stop" = "Tilføj stop";
 "saved" = "Gemt";
 "error_enter_correct_name" = "Angiv et korrekt navn";

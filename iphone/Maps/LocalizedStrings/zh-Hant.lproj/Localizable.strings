@@ -519,6 +519,8 @@
 "twentyfour_seven" = "24/7 全天候營業";
 "day_off_today" = "今天不營業";
 "day_off" = "不營業";
+"midnight" = "午夜";
+"noon" = "中午";
 "today" = "今天";
 "opens_in" = "將於 %@ 後開業";
 "closes_in" = "將於 %@ 後歇業";
@@ -652,7 +654,9 @@
 "planning_route_manage_route" = "管理路線";
 "button_plan" = "計畫";
 "placepage_remove_stop" = "刪除停止";
-"placepage_add_stop" = "新增中途點";
+
+/* Keep it short: PlacePage button, search field hint and full-screen map point picker title shown while choosing a new intermediate stop of a route. */
+"placepage_add_stop" = "新增途經點";
 "saved" = "已經儲存";
 "error_enter_correct_name" = "請輸入正確的名稱";
 "bookmark_lists" = "列表";

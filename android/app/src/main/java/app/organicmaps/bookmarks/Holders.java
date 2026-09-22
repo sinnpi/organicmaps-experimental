@@ -21,7 +21,6 @@ import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
 import androidx.recyclerview.widget.RecyclerView;
 import app.organicmaps.MwmApplication;
 import app.organicmaps.R;
-import app.organicmaps.adapter.OnItemClickListener;
 import app.organicmaps.sdk.bookmarks.data.BookmarkCategory;
 import app.organicmaps.sdk.bookmarks.data.BookmarkInfo;
 import app.organicmaps.sdk.bookmarks.data.BookmarkManager;
@@ -95,7 +94,7 @@ public class Holders
     }
   }
 
-  public static class GeneralViewHolder extends RecyclerView.ViewHolder implements DividerBehavior
+  public static class GeneralViewHolder extends CardViewHolderBase
   {
     @NonNull
     private final TextView mText;
@@ -120,12 +119,6 @@ public class Holders
     {
       return mImage;
     }
-
-    @Override
-    public boolean useFullWidthDivider()
-    {
-      return true;
-    }
   }
 
   public static class HeaderViewHolder extends RecyclerView.ViewHolder implements DividerBehavior
@@ -134,7 +127,6 @@ public class Holders
     private final TextView mButton;
     @NonNull
     private final TextView mText;
-    private boolean mSkipDivider;
 
     HeaderViewHolder(@NonNull View itemView)
     {
@@ -161,28 +153,11 @@ public class Holders
       mButton.setOnClickListener(new ToggleShowAllClickListener(action, showAll));
     }
 
-    void setAction(@NonNull HeaderActionChildCategories action, final boolean showAll)
-    {
-      mButton.setText(showAll ? R.string.bookmark_lists_show_all : R.string.bookmark_lists_hide_all);
-      mButton.setOnClickListener(new ToggleShowAllChildCategoryClickListener(action, showAll));
-    }
-
     /**
-     * Opt-in for the card-grouped bookmark list, where a header is a label above the card and must not be underlined.
+     * A header is a label above the card, not a row inside it, so it must never be underlined.
      */
-    void setSkipDivider(boolean skip)
-    {
-      mSkipDivider = skip;
-    }
-
     @Override
     public boolean skipDivider()
-    {
-      return mSkipDivider;
-    }
-
-    @Override
-    public boolean useFullWidthDivider()
     {
       return true;
     }
@@ -192,34 +167,6 @@ public class Holders
       void onHideAll();
 
       void onShowAll();
-    }
-
-    public interface HeaderActionChildCategories
-    {
-      void onHideAll();
-
-      void onShowAll();
-    }
-
-    private static class ToggleShowAllChildCategoryClickListener implements View.OnClickListener
-    {
-      private final HeaderActionChildCategories mAction;
-      private final boolean mShowAll;
-
-      ToggleShowAllChildCategoryClickListener(@NonNull HeaderActionChildCategories action, boolean showAll)
-      {
-        mAction = action;
-        mShowAll = showAll;
-      }
-
-      @Override
-      public void onClick(View view)
-      {
-        if (mShowAll)
-          mAction.onShowAll();
-        else
-          mAction.onHideAll();
-      }
     }
 
     private static class ToggleShowAllClickListener implements View.OnClickListener
@@ -244,24 +191,26 @@ public class Holders
     }
   }
 
-  static class CategoryViewHolderBase extends CardViewHolderBase
+  static class CategoryViewHolder extends CardViewHolderBase
   {
     @Nullable
-    protected BookmarkCategory mEntity;
-
+    private BookmarkCategory mEntity;
     @NonNull
-    protected final TextView mSize;
+    private final TextView mSize;
+    @NonNull
+    private final TextView mName;
+    @NonNull
+    private final ImageView mVisibilityMarker;
+    @NonNull
+    private final ImageView mMoreButton;
 
-    public CategoryViewHolderBase(@NonNull View root)
+    public CategoryViewHolder(@NonNull View root)
     {
       super(root);
       mSize = root.findViewById(R.id.size);
-    }
-
-    @Override
-    public boolean useFullWidthDivider()
-    {
-      return false;
+      mName = root.findViewById(R.id.name);
+      mVisibilityMarker = root.findViewById(R.id.eye);
+      mMoreButton = root.findViewById(R.id.more);
     }
 
     protected void setSize()
@@ -310,68 +259,12 @@ public class Holders
     {
       return resources.getQuantityString(plural, size, size);
     }
-  }
-  static class CollectionViewHolder extends CategoryViewHolderBase
-  {
-    @NonNull
-    private final View mView;
-    @NonNull
-    private final TextView mName;
-    @NonNull
-    private final CheckBox mVisibilityMarker;
-
-    CollectionViewHolder(@NonNull View root)
-    {
-      super(root);
-      mView = root;
-      mName = root.findViewById(R.id.name);
-      mVisibilityMarker = root.findViewById(R.id.checkbox);
-    }
-
-    void setOnClickListener(@Nullable OnItemClickListener<BookmarkCategory> listener)
-    {
-      mView.setOnClickListener(v -> {
-        if (listener != null && mEntity != null)
-          listener.onItemClick(v, mEntity);
-      });
-    }
 
     void setVisibilityState(boolean visible)
     {
-      mVisibilityMarker.setChecked(visible);
-    }
-
-    void setVisibilityListener(@Nullable View.OnClickListener listener)
-    {
-      mVisibilityMarker.setOnClickListener(listener);
-    }
-
-    void setName(@NonNull String name)
-    {
-      mName.setText(name);
-    }
-  }
-
-  static class CategoryViewHolder extends CategoryViewHolderBase
-  {
-    @NonNull
-    private final TextView mName;
-    @NonNull
-    CheckBox mVisibilityMarker;
-    @NonNull
-    ImageView mMoreButton;
-
-    CategoryViewHolder(@NonNull View root)
-    {
-      super(root);
-      mName = root.findViewById(R.id.name);
-      mVisibilityMarker = root.findViewById(R.id.checkbox);
-      mMoreButton = root.findViewById(R.id.more);
-    }
-
-    void setVisibilityState(boolean visible)
-    {
-      mVisibilityMarker.setChecked(visible);
+      mVisibilityMarker.setSelected(visible);
+      mVisibilityMarker.setContentDescription(
+          mVisibilityMarker.getContext().getString(visible ? R.string.hide : R.string.show));
     }
 
     void setVisibilityListener(@Nullable View.OnClickListener listener)
@@ -455,12 +348,6 @@ public class Holders
           listener.onLongItemClick(v, getBindingAdapterPosition());
         return true;
       });
-    }
-
-    @Override
-    public boolean useFullWidthDivider()
-    {
-      return false;
     }
   }
 

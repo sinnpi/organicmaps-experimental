@@ -519,6 +519,8 @@
 "twentyfour_seven" = "Deň a noc";
 "day_off_today" = "Dnes deň voľna";
 "day_off" = "Zatvorené";
+"midnight" = "Polnoc";
+"noon" = "Poludnie";
 "today" = "Dnes";
 "opens_in" = "Otvoria o %@";
 "closes_in" = "Zatvoria o %@";
@@ -652,6 +654,8 @@
 "planning_route_manage_route" = "Spravovať trasu";
 "button_plan" = "Naplánovať";
 "placepage_remove_stop" = "Odstrániť zastávku";
+
+/* Keep it short: PlacePage button, search field hint and full-screen map point picker title shown while choosing a new intermediate stop of a route. */
 "placepage_add_stop" = "Pridať zastávku";
 "saved" = "Uložené";
 "error_enter_correct_name" = "Prosím, zadajte správne meno";

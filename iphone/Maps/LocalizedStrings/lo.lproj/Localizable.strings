@@ -519,6 +519,8 @@
 "twentyfour_seven" = "24/7";
 "day_off_today" = "ປິດມື້ນີ້";
 "day_off" = "ປິດ";
+"midnight" = "ທ່ຽງຄືນ";
+"noon" = "ທ່ຽງວັນ";
 "today" = "ມື້ນີ້";
 "opens_in" = "ຈະເປີດໃນອີກ %@";
 "closes_in" = "ຈະປິດໃນອີກ %@";
@@ -652,7 +654,9 @@
 "planning_route_manage_route" = "ຈັດການເສັ້ນທາງ";
 "button_plan" = "ວາງແຜນ";
 "placepage_remove_stop" = "ເອົາຈຸດແວ່ພັກອອກ";
-"placepage_add_stop" = "ເພີ່ມຈຸດແວ່ພັກ";
+
+/* Keep it short: PlacePage button, search field hint and full-screen map point picker title shown while choosing a new intermediate stop of a route. */
+"placepage_add_stop" = "ເພີ່ມຈຸດຈອດ";
 "saved" = "ບັນທຶກແລ້ວ";
 "error_enter_correct_name" = "ກະລຸນາປ້ອນຊື່ທີ່ຖືກຕ້ອງ";
 "bookmark_lists" = "ລາຍການ";

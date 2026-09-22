@@ -519,6 +519,8 @@
 "twentyfour_seven" = "24/7";
 "day_off_today" = "Vandaag gesloten";
 "day_off" = "Gesloten";
+"midnight" = "Middernacht";
+"noon" = "Middaguur";
 "today" = "Vandaag";
 "opens_in" = "Opent over %@";
 "closes_in" = "Sluit over %@";
@@ -652,7 +654,9 @@
 "planning_route_manage_route" = "Beheer route";
 "button_plan" = "Plan";
 "placepage_remove_stop" = "Verwijder tussenstop";
-"placepage_add_stop" = "Voeg tussenstop toe";
+
+/* Keep it short: PlacePage button, search field hint and full-screen map point picker title shown while choosing a new intermediate stop of a route. */
+"placepage_add_stop" = "Stop toevoegen";
 "saved" = "Opgeslagen";
 "error_enter_correct_name" = "Voer een geldige naam in";
 "bookmark_lists" = "Lijsten";

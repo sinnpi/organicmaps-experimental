@@ -519,6 +519,8 @@
 "twentyfour_seven" = "24/7";
 "day_off_today" = "Mbyllur sot";
 "day_off" = "Mbyllur";
+"midnight" = "Mesnatë";
+"noon" = "Mesditë";
 "today" = "Sot";
 "opens_in" = "Hapet në %@";
 "closes_in" = "Mbyllet në %@";
@@ -652,7 +654,9 @@
 "planning_route_manage_route" = "Menaxho Rrugën";
 "button_plan" = "Planifiko";
 "placepage_remove_stop" = "Hiq Ndalesën";
-"placepage_add_stop" = "Shto Ndalesë";
+
+/* Keep it short: PlacePage button, search field hint and full-screen map point picker title shown while choosing a new intermediate stop of a route. */
+"placepage_add_stop" = "Shto ndalesë";
 "saved" = "Ruajtur";
 "error_enter_correct_name" = "Ju lutemi vendosni një emër të saktë";
 "bookmark_lists" = "Listat";

@@ -519,6 +519,8 @@
 "twentyfour_seven" = "24×7";
 "day_off_today" = "Šiandien uždaryta";
 "day_off" = "Uždaryta";
+"midnight" = "Vidurnaktis";
+"noon" = "Vidurdienis";
 "today" = "Šiandien";
 "opens_in" = "Atsidaro už %@";
 "closes_in" = "Užsidaro už %@";
@@ -652,6 +654,8 @@
 "planning_route_manage_route" = "Tvarkyti maršrutą";
 "button_plan" = "Planas";
 "placepage_remove_stop" = "Šalinti stotelę";
+
+/* Keep it short: PlacePage button, search field hint and full-screen map point picker title shown while choosing a new intermediate stop of a route. */
 "placepage_add_stop" = "Pridėti stotelę";
 "saved" = "Įrašyta";
 "error_enter_correct_name" = "Įveskite teisingą pavadinimą";

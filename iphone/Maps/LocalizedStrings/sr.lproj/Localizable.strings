@@ -519,6 +519,8 @@
 "twentyfour_seven" = "24/7";
 "day_off_today" = "Данас не ради";
 "day_off" = "Затворено";
+"midnight" = "Поноћ";
+"noon" = "Подне";
 "today" = "Данас";
 "opens_in" = "Отвара се за %@";
 "closes_in" = "Затвара се за %@";
@@ -652,7 +654,9 @@
 "planning_route_manage_route" = "Измени руту";
 "button_plan" = "План";
 "placepage_remove_stop" = "Уклони међуодредиште";
-"placepage_add_stop" = "Међуодредиште";
+
+/* Keep it short: PlacePage button, search field hint and full-screen map point picker title shown while choosing a new intermediate stop of a route. */
+"placepage_add_stop" = "Додај међуодредиште";
 "saved" = "Сачувано";
 "error_enter_correct_name" = "Молим Вас да унесете исправан назив";
 "bookmark_lists" = "Листе";

@@ -519,6 +519,8 @@
 "twentyfour_seven" = "ngày và đêm";
 "day_off_today" = "Nghỉ hôm nay";
 "day_off" = "Ngày nghỉ";
+"midnight" = "Nửa đêm";
+"noon" = "Trưa";
 "today" = "Hôm nay";
 "opens_in" = "Mở trong %@";
 "closes_in" = "Đóng trong %@";
@@ -652,6 +654,8 @@
 "planning_route_manage_route" = "Quản lý lộ trình";
 "button_plan" = "Kế hoạch";
 "placepage_remove_stop" = "Xóa điểm dừng";
+
+/* Keep it short: PlacePage button, search field hint and full-screen map point picker title shown while choosing a new intermediate stop of a route. */
 "placepage_add_stop" = "Thêm điểm dừng";
 "saved" = "Đã lưu";
 "error_enter_correct_name" = "Vui lòng nhập một tên chính xác";
