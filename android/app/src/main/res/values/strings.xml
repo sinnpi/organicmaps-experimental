@@ -937,6 +937,9 @@
     <string name="enable_track_following_summary">Offer track following when navigating from an imported track.</string>
     <!-- Action that builds a navigable route along an imported track, towards the end of the track. -->
     <string name="follow_track">Follow track to end</string>
+    <!-- Switch in route options, only while following an imported track. Does not override one-way or turn rules. -->
+    <string name="track_ignore_access">Ignore access restrictions</string>
+    <string name="track_ignore_access_description">For this track only. May include private or closed roads and gates. Check permission and access yourself. One-way and turn rules still apply.</string>
     <!-- Action that builds a navigable route along an imported track, towards the start of the track. -->
     <string name="follow_track_reverse">Follow track to start</string>
     <!-- Action that builds a navigable route along an imported track, stopping at the point the user tapped on it. -->
