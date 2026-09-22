@@ -6,6 +6,7 @@
 
 #include "generator/generator_tests_support/test_generator.hpp"
 
+#include <map>
 #include <memory>
 #include <set>
 #include <string>
@@ -33,6 +34,9 @@ public:
   // Returns the OSM way ids of the real (non-fake) segments |route| passes through, mapping each
   // route feature back to its source OSM id via the generated osm2ft section.
   std::set<uint64_t> GetUsedOsmWays(routing::Route const & route);
+
+  // Includes only the traversed portion of snapped roads, not their full feature geometry.
+  std::map<uint64_t, double> GetOsmWayDistancesMeters(routing::Route const & route);
 
 private:
   generator::tests_support::TestRawGenerator m_generator;

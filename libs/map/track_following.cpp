@@ -4,12 +4,12 @@
 
 #include "geometry/mercator.hpp"
 #include "geometry/parametrized_segment.hpp"
-#include "geometry/simplification.hpp"
 
 #include "base/assert.hpp"
 
 #include <algorithm>
 #include <limits>
+#include <utility>
 
 namespace track_following
 {
@@ -43,16 +43,6 @@ bool IsSamePoint(m2::PointD const & lhs, m2::PointD const & rhs)
 {
   return mercator::DistanceOnEarth(lhs, rhs) < 1e-3;
 }
-
-struct SquaredEarthDistanceFromSegmentToPoint
-{
-  double operator()(m2::PointD const & start, m2::PointD const & finish, m2::PointD const & point) const
-  {
-    auto const projection = m2::ParametrizedSegment<m2::PointD>(start, finish).ClosestPointTo(point);
-    auto const distanceM = mercator::DistanceOnEarth(point, projection);
-    return distanceM * distanceM;
-  }
-};
 
 std::vector<m2::PointD> GetDirectedPoints(kml::TrackGeometry const & line, Direction direction)
 {
@@ -152,14 +142,72 @@ std::vector<m2::PointD> GetRemainingPoints(std::vector<m2::PointD> const & direc
   return remaining;
 }
 
+// Where |position| falls on |centerline|, searching only within one ordered leg so that a nearby
+// later visit to the same road cannot discard an unvisited loop.
+ClosestProjection ProjectOnLeg(std::vector<m2::PointD> const & centerline, size_t legIndex, m2::PointD const & position)
+{
+  auto const indices = routing::GetTrackLegIndices(centerline);
+  CHECK_LESS(legIndex + 1, indices.size(), ());
+  auto const begin = indices[legIndex];
+  std::vector<m2::PointD> const leg(centerline.begin() + begin, centerline.begin() + indices[legIndex + 1] + 1);
+  auto projection = FindClosestProjectionOnPoints(leg, position);
+  CHECK(projection, ());
+  projection->m_segmentIndex += begin;
+  return *projection;
+}
+
 std::vector<m2::PointD> Simplify(std::vector<m2::PointD> const & points)
 {
   ASSERT_GREATER_OR_EQUAL(points.size(), 2, ());
 
-  std::vector<m2::PointD> simplified;
-  SimplifyDP(points.begin(), points.end(), kSimplificationToleranceM * kSimplificationToleranceM,
-             SquaredEarthDistanceFromSegmentToPoint{},
-             [&simplified](m2::PointD const & point) { simplified.push_back(point); });
+  // Douglas-Peucker with an additional order check. Distance to a segment alone cannot distinguish
+  // A -> B -> A -> C from A -> C when all four points lie on the same road. Keep a turnaround when
+  // projections backtrack by more than the same tolerance used for lateral recording noise.
+  std::vector<m2::PointD> simplified = {points.front()};
+  std::vector<std::pair<size_t, size_t>> pending = {{0, points.size() - 1}};
+  while (!pending.empty())
+  {
+    auto const [begin, end] = pending.back();
+    pending.pop_back();
+    m2::ParametrizedSegment<m2::PointD> const segment(points[begin], points[end]);
+    auto const direction = points[end] - points[begin];
+    auto furthestProjection = points[begin];
+    size_t furthestIndex = begin;
+    size_t split = end;
+    double worstM = kSimplificationToleranceM;
+    for (size_t i = begin + 1; i < end; ++i)
+    {
+      auto const projection = segment.ClosestPointTo(points[i]);
+      double const lateralM = mercator::DistanceOnEarth(points[i], projection);
+      if (lateralM >= worstM)
+      {
+        worstM = lateralM;
+        split = i;
+      }
+      if (m2::DotProduct(projection - furthestProjection, direction) >= 0.0)
+      {
+        furthestProjection = projection;
+        furthestIndex = i;
+      }
+      else
+      {
+        double const backwardM = mercator::DistanceOnEarth(projection, furthestProjection);
+        if (backwardM >= worstM)
+        {
+          worstM = backwardM;
+          split = furthestIndex;
+        }
+      }
+    }
+    if (split != end)
+    {
+      // Process left first, without recursion on potentially large recordings.
+      pending.emplace_back(split, end);
+      pending.emplace_back(begin, split);
+    }
+    else
+      simplified.push_back(points[end]);
+  }
   return simplified;
 }
 
@@ -173,7 +221,7 @@ std::optional<Plan> MakePlanFromPoints(std::vector<m2::PointD> const & points, s
     return std::nullopt;
 
   auto simplified = Simplify(points);
-  if (simplified.size() < 2)
+  if (simplified.size() < 2 || LengthM(simplified) < kMinTrackRemainderM)
     return std::nullopt;
 
   return Plan{std::move(simplified), lineIndex};
@@ -223,14 +271,7 @@ std::optional<Plan> MakePlanTo(kml::MultiGeometry const & geometry, m2::PointD c
 std::vector<m2::PointD> GetRemainingCenterline(std::vector<m2::PointD> const & centerline, size_t legIndex,
                                                m2::PointD const & position)
 {
-  auto const indices = routing::GetTrackLegIndices(centerline);
-  CHECK_LESS(legIndex + 1, indices.size(), ());
-  auto const begin = indices[legIndex];
-  std::vector<m2::PointD> const leg(centerline.begin() + begin, centerline.begin() + indices[legIndex + 1] + 1);
-  auto projection = FindClosestProjectionOnPoints(leg, position);
-  CHECK(projection, ());
-  projection->m_segmentIndex += begin;
-  auto remaining = GetRemainingPoints(centerline, *projection);
+  auto remaining = GetRemainingPoints(centerline, ProjectOnLeg(centerline, legIndex, position));
   if (remaining.size() < 2 || LengthM(remaining) < kMinTrackRemainderM)
     return {};
   return remaining;
@@ -239,6 +280,17 @@ std::vector<m2::PointD> GetRemainingCenterline(std::vector<m2::PointD> const & c
 std::vector<m2::PointD> MakeDetourCenterline(std::vector<m2::PointD> const & remaining, m2::PointD const & stop)
 {
   return GetRemainingCenterline(remaining, 0, stop);
+}
+
+std::vector<m2::PointD> MakeApproachCenterline(std::vector<m2::PointD> const & remaining, m2::PointD const & stop)
+{
+  auto const projection = ProjectOnLeg(remaining, 0, stop);
+  std::vector<m2::PointD> approach(remaining.begin(), remaining.begin() + projection.m_segmentIndex + 1);
+  if (!IsSamePoint(approach.back(), projection.m_point))
+    approach.push_back(projection.m_point);
+  if (approach.size() < 2 || LengthM(approach) < kMinTrackRemainderM)
+    return {};
+  return approach;
 }
 
 std::vector<m2::PointD> MakeDetourCheckpoints(std::vector<m2::PointD> const & centerline,

@@ -48,12 +48,18 @@ std::vector<m2::PointD> GetRemainingCenterline(std::vector<m2::PointD> const & c
 // Choose a rejoin point ahead, within the first remaining leg. Returns empty at the track's end.
 std::vector<m2::PointD> MakeDetourCenterline(std::vector<m2::PointD> const & remaining, m2::PointD const & stop);
 
+// The track before that rejoin point: what is still to be ridden before the detour leaves the track.
+// The leg heading for |stop| is biased toward it, so a detour does not straighten the stretch of
+// track it has not reached yet. Empty when the rejoin point is where we already are.
+std::vector<m2::PointD> MakeApproachCenterline(std::vector<m2::PointD> const & remaining, m2::PointD const & stop);
+
 // Route from |currentPosition| to the selected track's end, with ordered internal checkpoints
 // separating repeated visits to the same road. See routing::GetTrackLegIndices.
 std::vector<m2::PointD> MakeCheckpoints(std::vector<m2::PointD> const & centerline, m2::PointD const & currentPosition);
 
-// Prefix a normal approach to the rejoin point, optionally via an unvisited stop. The extra one or
-// two legs are routed without a corridor; the remaining legs follow |centerline| as usual.
+// Prefix an approach to the rejoin point, optionally via an unvisited stop. The leg heading for the
+// stop follows MakeApproachCenterline; the one coming back from it is off-track by definition and is
+// routed without a corridor. The remaining legs follow |centerline| as usual.
 std::vector<m2::PointD> MakeDetourCheckpoints(std::vector<m2::PointD> const & centerline,
                                               m2::PointD const & currentPosition, std::optional<m2::PointD> stop);
 }  // namespace track_following

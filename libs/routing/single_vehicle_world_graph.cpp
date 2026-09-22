@@ -126,7 +126,7 @@ bool SingleVehicleWorldGraph::IsOneWay(NumMwmId mwmId, uint32_t featureId)
 
 bool SingleVehicleWorldGraph::IsPassThroughAllowed(NumMwmId mwmId, uint32_t featureId)
 {
-  return GetRoadGeometry(mwmId, featureId).IsPassThroughAllowed();
+  return GetIndexGraph(mwmId).IsPassThroughAllowed(featureId);
 }
 
 RouteWeight SingleVehicleWorldGraph::HeuristicCostEstimate(ms::LatLon const & from, ms::LatLon const & to)

@@ -62,9 +62,14 @@ public:
   /// cleared with an empty vector, so rebuilds after a deviation keep following the same track.
   /// Checkpoints normally come from MakeTrackCheckpoints. A detour may prefix one or two extra
   /// checkpoints: current position, optional stop, then centerline.front() as the rejoin point.
-  /// These approach legs use normal routing, without the corridor.
-  /// Routers with no notion of a track corridor ignore it.
-  virtual void SetTrackCorridor(std::vector<m2::PointD> && /* centerline */) {}
+  /// |approach| is the stretch of track before that rejoin point, which the leg heading for the stop
+  /// is biased toward, so that a detour does not straighten the track it has not ridden yet. The leg
+  /// coming back from the stop is off-track by definition and uses normal routing.
+  /// |ignoreAccessRestrictions| overrides road/node access and pass-through restrictions for this
+  /// track route only. It does not change one-way/turn rules or add roads missing from the graph.
+  virtual void SetTrackCorridor(std::vector<m2::PointD> && /* centerline */, std::vector<m2::PointD> && /* approach */,
+                                bool /* ignoreAccessRestrictions */ = false)
+  {}
 
   /// Override this function with routing implementation.
   /// It will be called in separate thread and only one function will processed in same time.

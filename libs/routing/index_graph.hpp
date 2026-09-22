@@ -76,7 +76,8 @@ public:
 
   RoadAccess::Type GetAccessType(Segment const & segment) const
   {
-    return m_roadAccess.GetAccessWithoutConditional(segment.GetFeatureId()).first;
+    return m_ignoreAccessRestrictions ? RoadAccess::Type::Yes
+                                      : m_roadAccess.GetAccessWithoutConditional(segment.GetFeatureId()).first;
   }
 
   uint32_t GetNumRoads() const { return m_roadIndex.GetSize(); }
@@ -89,6 +90,12 @@ public:
   void SetRestrictions(RestrictionVec && restrictions);
   void SetUTurnRestrictions(std::vector<RestrictionUTurn> && noUTurnRestrictions);
   void SetRoadAccess(RoadAccess && roadAccess);
+  // Explicit per-route override; turn restrictions and road geometry remain unchanged.
+  void SetIgnoreAccessRestrictions(bool ignore) { m_ignoreAccessRestrictions = ignore; }
+  bool IsPassThroughAllowed(uint32_t featureId) const
+  {
+    return m_ignoreAccessRestrictions || GetRoadGeometry(featureId).IsPassThroughAllowed();
+  }
 
   void PushFromSerializer(Joint::Id jointId, RoadPoint const & rp) { m_roadIndex.PushFromSerializer(jointId, rp); }
 
@@ -202,6 +209,7 @@ private:
   // no_u_turn restriction at the feature with id = featureId.
   std::unordered_map<uint32_t, UTurnEnding> m_noUTurnRestrictions;
 
+  bool m_ignoreAccessRestrictions = false;
   RoadAccess m_roadAccess;
   RoutingOptions m_avoidRoutingOptions;
 
@@ -212,6 +220,9 @@ template <typename AccessPositionType>
 bool IndexGraph::IsAccessNoForSure(AccessPositionType const & accessPositionType, RouteWeight const & weight,
                                    bool useAccessConditional) const
 {
+  if (m_ignoreAccessRestrictions)
+    return false;
+
   auto const [accessType, confidence] = useAccessConditional
                                           ? m_roadAccess.GetAccess(accessPositionType, weight)
                                           : m_roadAccess.GetAccessWithoutConditional(accessPositionType);

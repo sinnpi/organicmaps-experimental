@@ -27,9 +27,9 @@ double constexpr kPenaltyScaleM = 15.0;
 double constexpr kSkippedTrackFactor = 2.0;
 // Below this a segment has no meaningful direction, so what it appears to skip is projection noise.
 double constexpr kMinJudgedSegmentLengthM = 1.0;
-// Upper bound on the multiplier, so a genuinely unavoidable detour (a bridge, a one-way loop) stays
-// routable instead of being priced out entirely.
-double constexpr kMaxPenaltyFactor = 10.0;
+// Limit the distance-from-track charge for unavoidable detours or offset recordings. Do not cap
+// the skipped-track charge: a short connector must still pay for a long loop it bypasses.
+double constexpr kMaxDistancePenaltyFactor = 10.0;
 // Initial hard search-space bound. Widened by the caller (see SetMaxCorridorRadiusM) and the route
 // search retried if this is too tight to find any path at all.
 double constexpr kDefaultMaxCorridorRadiusM = 500.0;
@@ -111,7 +111,7 @@ TrackCorridorWorldGraph::Penalty TrackCorridorWorldGraph::CalcPenalty(Segment co
     // Scaling the edge's own weight rather than adding a flat cost keeps the bias independent of how
     // OSM happens to split a road into segments: a flat per-edge penalty would punish a finely
     // subdivided road far more than a single long segment covering the same ground.
-    penalty.m_factor = (penalty.m_distanceM - kFreeRadiusM) / kPenaltyScaleM;
+    penalty.m_factor = std::min((penalty.m_distanceM - kFreeRadiusM) / kPenaltyScaleM, kMaxDistancePenaltyFactor);
   }
 
   // How much track the segment covers, against how long it is. A segment running along the track
@@ -129,8 +129,29 @@ TrackCorridorWorldGraph::Penalty TrackCorridorWorldGraph::CalcPenalty(Segment co
       penalty.m_factor += kSkippedTrackFactor * (coveredM - lengthM) / lengthM;
   }
 
-  penalty.m_factor = std::min(penalty.m_factor, kMaxPenaltyFactor);
   return penalty;
+}
+
+TrackCorridorWorldGraph::Penalty const & TrackCorridorWorldGraph::GetPenalty(Segment const & judged) const
+{
+  auto const cached = m_penaltyCache.find(judged);
+  return cached != m_penaltyCache.end() ? cached->second
+                                       : m_penaltyCache.emplace(judged, CalcPenalty(judged)).first->second;
+}
+
+RouteWeight TrackCorridorWorldGraph::CalcSegmentWeight(Segment const & segment, EdgeEstimator::Purpose purpose)
+{
+  auto weight = m_inner.CalcSegmentWeight(segment, purpose);
+  if (purpose == EdgeEstimator::Purpose::Weight && !m_centerline.empty())
+  {
+    // Starter-owned partial roads are priced here, without going through GetEdgeList. Otherwise
+    // a shortcut incident to a snapped endpoint/checkpoint escapes the corridor penalty entirely.
+    // The starter scales this weight by the traversed fraction, just like the underlying road cost.
+    auto const factor = GetPenalty(segment).m_factor;
+    if (factor > 0.0)
+      weight += RouteWeight(weight.GetWeight() * factor);
+  }
+  return weight;
 }
 
 bool TrackCorridorWorldGraph::AdjustForCorridor(Segment const & judged, RouteWeight & weight) const
@@ -138,11 +159,7 @@ bool TrackCorridorWorldGraph::AdjustForCorridor(Segment const & judged, RouteWei
   if (m_centerline.empty())
     return true;
 
-  auto const cached = m_penaltyCache.find(judged);
-  auto const & penalty = cached != m_penaltyCache.end()
-                           ? cached->second
-                           : m_penaltyCache.emplace(judged, CalcPenalty(judged)).first->second;
-
+  auto const & penalty = GetPenalty(judged);
   if (penalty.m_distanceM > m_maxCorridorRadiusM)
     return false;
 

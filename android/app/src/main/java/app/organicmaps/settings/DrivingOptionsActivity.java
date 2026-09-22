@@ -9,6 +9,7 @@ import app.organicmaps.base.BaseMwmFragmentActivity;
 
 public class DrivingOptionsActivity extends BaseMwmFragmentActivity
 {
+  static final String EXTRA_ROUTE_OPTIONS = "route_options";
   @Override
   protected Class<? extends Fragment> getFragmentClass()
   {
@@ -18,6 +19,7 @@ public class DrivingOptionsActivity extends BaseMwmFragmentActivity
   public static void start(@NonNull Activity activity, ActivityResultLauncher<Intent> startDrivingOptionsForResult)
   {
     Intent intent = new Intent(activity, DrivingOptionsActivity.class);
+    intent.putExtra(EXTRA_ROUTE_OPTIONS, true);
     startDrivingOptionsForResult.launch(intent);
   }
 }

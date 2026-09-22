@@ -75,7 +75,8 @@ UNIT_TEST(TrackFollowing_RoutesWholeLoopInBothDirections)
         auto const plan = track_following::MakePlan(geometry, current, direction);
         TEST(plan, (scenario));
         Checkpoints const checkpoints(track_following::MakeCheckpoints(plan->m_centerline, current));
-        map.GetComponents().GetRouter().SetTrackCorridor(std::vector<m2::PointD>(plan->m_centerline));
+        map.GetComponents().GetRouter().SetTrackCorridor(std::vector<m2::PointD>(plan->m_centerline),
+                                                         {} /* approach */);
         auto const result = integration::CalculateRoute(map.GetComponents(), checkpoints, {} /* guides */);
         TEST_EQUAL(result.second, RouterResultCode::NoError, (scenario));
         TEST(result.first, ());
@@ -100,7 +101,7 @@ UNIT_TEST(TrackFollowing_JoinsLoopPartwayWithoutRestarting)
   TEST(plan, ());
   Checkpoints const checkpoints(track_following::MakeCheckpoints(plan->m_centerline, current));
   TEST_EQUAL(checkpoints.GetNumSubroutes(), 1, ());
-  map.GetComponents().GetRouter().SetTrackCorridor(std::vector<m2::PointD>(plan->m_centerline));
+  map.GetComponents().GetRouter().SetTrackCorridor(std::vector<m2::PointD>(plan->m_centerline), {} /* approach */);
   auto const result = integration::CalculateRoute(map.GetComponents(), checkpoints, {} /* guides */);
   TEST_EQUAL(result.second, RouterResultCode::NoError, ());
   TEST(result.first, ());
@@ -119,7 +120,7 @@ UNIT_TEST(TrackFollowing_RebuildSkipsPassedLoopCheckpoints)
   auto const plan = track_following::MakePlan(geometry, start, track_following::Direction::Forward);
   TEST(plan, ());
   Checkpoints checkpoints(track_following::MakeCheckpoints(plan->m_centerline, start));
-  map.GetComponents().GetRouter().SetTrackCorridor(std::vector<m2::PointD>(plan->m_centerline));
+  map.GetComponents().GetRouter().SetTrackCorridor(std::vector<m2::PointD>(plan->m_centerline), {} /* approach */);
 
   checkpoints.PassNextPoint();
   auto result = integration::CalculateRoute(map.GetComponents(), checkpoints, {} /* guides */);
@@ -154,8 +155,9 @@ UNIT_TEST(TrackFollowing_DetourVisitsStopThenResumesTheLoop)
     auto const rejoin = track_following::MakeDetourCenterline(plan->m_centerline, stop);
     TEST(!rejoin.empty(), ());
     TEST_LESS(mercator::DistanceOnEarth(rejoin.front(), mercator::FromLatLon(55.07, 82.935)), 1.0, ());
+    auto approach = track_following::MakeApproachCenterline(plan->m_centerline, stop);
     auto & router = map.GetComponents().GetRouter();
-    router.SetTrackCorridor(std::vector<m2::PointD>(rejoin));
+    router.SetTrackCorridor(std::vector<m2::PointD>(rejoin), std::move(approach));
     Checkpoints checkpoints(track_following::MakeDetourCheckpoints(rejoin, start, stop));
     auto result = integration::CalculateRoute(map.GetComponents(), checkpoints, {} /* guides */);
     TEST_EQUAL(result.second, RouterResultCode::NoError, (vehicle));
@@ -178,7 +180,8 @@ UNIT_TEST(TrackFollowing_DetourVisitsStopThenResumesTheLoop)
     TEST_LESS(result.first->GetTotalDistanceMeters(), 7000.0, ());
     TestVisitsInOrder(*result.first, rejoin);
 
-    // A full rebuild while returning uses only one approach leg.
+    // A full rebuild while returning uses only one approach leg, with no track left to follow first.
+    router.SetTrackCorridor(std::vector<m2::PointD>(rejoin), {} /* approach */);
     checkpoints = Checkpoints(track_following::MakeDetourCheckpoints(rejoin, stop, std::nullopt));
     result = integration::CalculateRoute(map.GetComponents(), checkpoints, {} /* guides */);
     TEST_EQUAL(result.second, RouterResultCode::NoError, ());
@@ -197,12 +200,47 @@ UNIT_TEST(TrackFollowing_DetourStopOnTheTrack)
   auto const plan = track_following::MakePlan(Loop(), start, track_following::Direction::Forward);
   TEST(plan, ());
   auto const rejoin = track_following::MakeDetourCenterline(plan->m_centerline, stop);
-  map.GetComponents().GetRouter().SetTrackCorridor(std::vector<m2::PointD>(rejoin));
+  map.GetComponents().GetRouter().SetTrackCorridor(std::vector<m2::PointD>(rejoin),
+                                                   track_following::MakeApproachCenterline(plan->m_centerline, stop));
   Checkpoints const checkpoints(track_following::MakeDetourCheckpoints(rejoin, start, stop));
   auto const result = integration::CalculateRoute(map.GetComponents(), checkpoints, {} /* guides */);
   TEST_EQUAL(result.second, RouterResultCode::NoError, ());
   TEST(result.first, ());
   TEST_GREATER(result.first->GetTotalDistanceMeters(), 3400.0, ());
   TEST_LESS(result.first->GetTotalDistanceMeters(), 3600.0, ());
+}
+
+// A detour must not straighten the track it has not ridden yet: it stays on it until leaving for the
+// stop is worth more than staying, even where a shortcut across the track reaches the stop sooner.
+UNIT_TEST(TrackFollowing_DetourRidesTheTrackUpToTheStop)
+{
+  for (auto vehicle : {VehicleType::Pedestrian, VehicleType::Bicycle})
+  {
+    integration::GeneratedMapTest map("./data/test_data/osm/track_detour.osm", "Russia_Novosibirsk Oblast", vehicle);
+    auto const start = mercator::FromLatLon(55.07, 82.93);
+    auto const stop = mercator::FromLatLon(55.08, 82.945);
+    auto const plan = track_following::MakePlan(Loop(), start, track_following::Direction::Forward);
+    TEST(plan, ());
+    auto const rejoin = track_following::MakeDetourCenterline(plan->m_centerline, stop);
+    auto const approach = track_following::MakeApproachCenterline(plan->m_centerline, stop);
+    TEST(!rejoin.empty() && !approach.empty(), ());
+    TEST_LESS(mercator::DistanceOnEarth(approach.back(), rejoin.front()), 1.0, ());
+    map.GetComponents().GetRouter().SetTrackCorridor(std::vector<m2::PointD>(rejoin),
+                                                     std::vector<m2::PointD>(approach));
+    Checkpoints const checkpoints(track_following::MakeDetourCheckpoints(rejoin, start, stop));
+    auto const result = integration::CalculateRoute(map.GetComponents(), checkpoints, {} /* guides */);
+    TEST_EQUAL(result.second, RouterResultCode::NoError, (vehicle));
+    TEST(result.first, ());
+    TEST_EQUAL(result.first->GetSubrouteCount(), checkpoints.GetNumSubroutes(), ());
+    // Way 600 cuts the corner, reaching the stop 470 m sooner. Coordinate quantization can
+    // leave sub-metre snapped fragments on it at the loop endpoints; those are not a shortcut.
+    auto distances = map.GetOsmWayDistancesMeters(*result.first);
+    TEST_LESS(distances[600], 1.0, (vehicle, distances));
+    TEST_GREATER(distances[100], 600.0, (vehicle, distances));
+    TEST_GREATER(distances[200], 1100.0, (vehicle, distances));
+    TestVisitsInOrder(*result.first, approach);
+    TEST_GREATER(result.first->GetTotalDistanceMeters(), 4000.0, (vehicle));
+    TEST_LESS(result.first->GetTotalDistanceMeters(), 4300.0, (vehicle));
+  }
 }
 }  // namespace track_following_integration_tests

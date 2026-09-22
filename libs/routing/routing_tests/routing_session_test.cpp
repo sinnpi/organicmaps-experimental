@@ -477,12 +477,12 @@ UNIT_CLASS_TEST(AsyncGuiThreadTestWithRoutingSession, TestFollowRouteFlagPersist
 
 UNIT_CLASS_TEST(AsyncGuiThreadTestWithRoutingSession, TestFollowRoutePercentTest)
 {
+  // DummyRouter keeps a reference and increments it on the routing thread, after the GUI task returns.
+  size_t counter = 0;
   TimedSignal alongTimedSignal;
-  GetPlatform().RunTask(Platform::Thread::Gui, [&alongTimedSignal, this]()
+  GetPlatform().RunTask(Platform::Thread::Gui, [&alongTimedSignal, &counter, this]()
   {
     InitRoutingSession();
-
-    size_t counter = 0;
     m_session->SetRouter(make_unique<DummyRouter>(counter), nullptr);
 
     // Get completion percent of unexisted route.

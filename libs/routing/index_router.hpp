@@ -80,14 +80,22 @@ public:
   void ClearState() override;
 
   void SetGuides(GuidesTracks && guides) override;
-  void SetTrackCorridor(std::vector<m2::PointD> && centerline) override { m_trackCorridor = std::move(centerline); }
+  void SetTrackCorridor(std::vector<m2::PointD> && centerline, std::vector<m2::PointD> && approach,
+                        bool ignoreAccessRestrictions = false) override
+  {
+    m_trackCorridor = std::move(centerline);
+    m_trackApproach = std::move(approach);
+    m_ignoreTrackAccessRestrictions = !m_trackCorridor.empty() && ignoreAccessRestrictions;
+  }
   RouterResultCode CalculateRoute(Checkpoints const & checkpoints, m2::PointD const & startDirection,
                                   bool adjustToPrevRoute, RouterDelegate const & delegate,
                                   RoutesResult & result) override;
 
   // Builds a route biased toward |centerline| on the road graph (see TrackCorridorWorldGraph).
   // Honors unpassed checkpoints, including the internal points that preserve a loop's direction.
+  // |approach| biases a detour's first leg; empty otherwise. See SetTrackCorridor.
   RouterResultCode CalculateTrackFollowingRoute(std::vector<m2::PointD> const & centerline,
+                                                std::vector<m2::PointD> const & approach,
                                                 Checkpoints const & checkpoints, RouterDelegate const & delegate,
                                                 Route & route);
 
@@ -141,7 +149,7 @@ private:
   RouterResultCode AdjustRoute(Checkpoints const & checkpoints, m2::PointD const & startDirection,
                                RouterDelegate const & delegate, Route & route);
 
-  std::unique_ptr<WorldGraph> MakeWorldGraph();
+  std::unique_ptr<WorldGraph> MakeWorldGraph(bool ignoreAccessRestrictions = false);
 
   using EdgeProjectionT = IRoadGraph::EdgeProjectionT;
   class PointsOnEdgesSnapping
@@ -316,8 +324,11 @@ private:
 
   // If a ckeckpoint is near to the guide track we need to build route through this track.
   GuidesConnections m_guides;
+  bool m_ignoreTrackAccessRestrictions = false;
   // Non-empty only in track-following navigation; see SetTrackCorridor and CalculateTrackFollowingRoute.
   std::vector<m2::PointD> m_trackCorridor;
+  // Non-empty only while a detour's stop is still ahead of us.
+  std::vector<m2::PointD> m_trackApproach;
 
   CountryParentNameGetterFn m_countryParentNameGetterFn;
 

@@ -1309,6 +1309,18 @@ void RoutingManager::GenerateNotifications(std::vector<std::string> & turnNotifi
   m_routingSession.GenerateNotifications(turnNotifications, announceStreets);
 }
 
+bool RoutingManager::GetTrackIgnoreAccessRestrictions() const
+{
+  return m_trackFollowState && m_trackFollowState->m_ignoreAccessRestrictions;
+}
+
+void RoutingManager::SetTrackIgnoreAccessRestrictions(bool ignore)
+{
+  CHECK_THREAD_CHECKER(m_threadChecker, ());
+  if (m_trackFollowState)
+    m_trackFollowState->m_ignoreAccessRestrictions = ignore;
+}
+
 bool RoutingManager::CanAddTrackDetour() const
 {
   if (!m_trackFollowState || !IsRoutingFollowing() || !IsRouteValid() || IsRouteFinished())
@@ -1533,19 +1545,23 @@ void RoutingManager::BuildRoute(uint32_t timeoutSec)
     {
       auto const & detour = *state.m_detour;
       std::optional<m2::PointD> stop;
+      // The track up to the rejoin point is still to be ridden, so keep following it on the way to
+      // the stop. Once the stop is behind us there is nothing left to follow before rejoining.
+      std::vector<m2::PointD> approach;
       if (!detour.m_stopPassed)
       {
         CHECK_EQUAL(routePoints.size(), 3, ());
         stop = routePoints[1].m_position;
+        approach = track_following::MakeApproachCenterline(state.m_centerline, *stop);
       }
-      m_routingSession.SetTrackCorridor(detour.m_centerline);
+      m_routingSession.SetTrackCorridor(detour.m_centerline, std::move(approach), state.m_ignoreAccessRestrictions);
       points = track_following::MakeDetourCheckpoints(detour.m_centerline, points.front(), stop);
       state.m_approachLegs = points[1] == detour.m_centerline.front() ? 1 : 2;
     }
     else
     {
       ASSERT_EQUAL(routePoints.size(), 2, ());
-      m_routingSession.SetTrackCorridor(state.m_centerline);
+      m_routingSession.SetTrackCorridor(state.m_centerline, {}, state.m_ignoreAccessRestrictions);
       points = track_following::MakeCheckpoints(state.m_centerline, points.front());
       state.m_approachLegs = 0;
     }
@@ -1553,7 +1569,7 @@ void RoutingManager::BuildRoute(uint32_t timeoutSec)
   }
   else
   {
-    m_routingSession.SetTrackCorridor({});
+    m_routingSession.SetTrackCorridor({}, {});
   }
 
   m_routingSession.BuildRoute(Checkpoints(std::move(points)), timeoutSec);
@@ -2049,7 +2065,7 @@ std::vector<RouteMarkData> RoutingManager::GetRoutePointsToSave() const
 void RoutingManager::ResetTrackFollowMode()
 {
   m_trackFollowState.reset();
-  m_routingSession.SetTrackCorridor({});
+  m_routingSession.SetTrackCorridor({}, {});
 }
 
 void RoutingManager::OnExtrapolatedLocationUpdate(location::GpsInfo const & info)

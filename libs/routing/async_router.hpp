@@ -49,7 +49,8 @@ public:
 
   void SetGuidesTracks(GuidesTracks && guides);
   /// Forward to the underlying IRouter. See IRouter::SetTrackCorridor.
-  void SetTrackCorridor(std::vector<m2::PointD> && centerline);
+  void SetTrackCorridor(std::vector<m2::PointD> && centerline, std::vector<m2::PointD> && approach,
+                        bool ignoreAccessRestrictions = false);
   /// Interrupt routing and clear buffers
   void ClearState();
   /// Forward to the underlying IRouter. See IRouter::SwapAltRouteToActive.
@@ -111,8 +112,10 @@ private:
   bool m_clearState = false;
   Checkpoints m_checkpoints;
   GuidesTracks m_guides;
-  // Unlike |m_guides| this outlives a single request -- see IRouter::SetTrackCorridor.
+  bool m_ignoreTrackAccessRestrictions = false;
+  // Unlike |m_guides| these outlive a single request -- see IRouter::SetTrackCorridor.
   std::vector<m2::PointD> m_trackCorridor;
+  std::vector<m2::PointD> m_trackApproach;
 
   m2::PointD m_startDirection = m2::PointD::Zero();
   bool m_adjustToPrevRoute = false;

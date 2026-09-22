@@ -404,7 +404,7 @@ void IndexGraph::GetNeighboringEdge(astar::VertexData<Segment, RouteWeight> cons
 IndexGraph::PenaltyData IndexGraph::GetRoadPenaltyData(Segment const & segment) const
 {
   auto const & road = GetRoadGeometry(segment.GetFeatureId());
-  return {road.IsPassThroughAllowed(), road.GetRoutingOptions().Has(RoutingOptions::Road::Ferry)};
+  return {IsPassThroughAllowed(segment.GetFeatureId()), road.GetRoutingOptions().Has(RoutingOptions::Road::Ferry)};
 }
 
 RouteWeight IndexGraph::GetPenalties(EdgeEstimator::Purpose purpose, Segment const & u, Segment const & v,
@@ -468,6 +468,9 @@ RouteWeight IndexGraph::GetPenalties(EdgeEstimator::Purpose purpose, Segment con
 
   if (IsBoarding(fromPenaltyData.m_isFerry, toPenaltyData.m_isFerry))
     weightPenalty += m_estimator->GetFerryLandingPenalty(purpose);
+
+  if (m_ignoreAccessRestrictions)
+    return RouteWeight(weightPenalty);
 
   return {weightPenalty /* weight */, passThroughPenalty, accessPenalty, accessConditionalPenalties,
           0.0 /* transitTime */};

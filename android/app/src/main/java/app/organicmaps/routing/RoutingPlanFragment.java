@@ -362,6 +362,8 @@ public class RoutingPlanFragment extends Fragment implements View.OnLayoutChange
 
   private void updateBadgeCount(int count)
   {
+    if (Framework.nativeGetTrackIgnoreAccessRestrictions())
+      ++count;
     if (count > 0)
     {
       UiUtils.show(mDrivingOptionsBadge);

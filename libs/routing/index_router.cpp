@@ -55,6 +55,7 @@
 #include <algorithm>
 #include <deque>
 #include <iterator>
+#include <limits>
 #include <map>
 
 namespace routing
@@ -443,7 +444,7 @@ RouterResultCode IndexRouter::CalculateRoute(Checkpoints const & checkpoints, m2
       // Track following. Neither adjust-to-previous nor the alternative route applies here: the first
       // works off the unbiased graph and would drift off the track, and there is only one sensible way
       // to follow a given track, so a second "alternative" would just be a worse match for it.
-      code = CalculateTrackFollowingRoute(m_trackCorridor, checkpoints, delegate, route);
+      code = CalculateTrackFollowingRoute(m_trackCorridor, m_trackApproach, checkpoints, delegate, route);
       doCalculate = false;
     }
     else if (adjustToPrevRoute && m_lastRoute && m_lastFakeEdges && finalPoint == m_lastRoute->GetFinish())
@@ -1274,6 +1275,7 @@ RouterResultCode IndexRouter::AdjustRoute(Checkpoints const & checkpoints, m2::P
 }
 
 RouterResultCode IndexRouter::CalculateTrackFollowingRoute(std::vector<m2::PointD> const & centerline,
+                                                           std::vector<m2::PointD> const & approach,
                                                            Checkpoints const & checkpoints,
                                                            RouterDelegate const & delegate, Route & route)
 {
@@ -1296,7 +1298,7 @@ RouterResultCode IndexRouter::CalculateTrackFollowingRoute(std::vector<m2::Point
   SCOPE_GUARD(restoreStrategy, [this] { m_estimator->SetStrategy(EdgeEstimator::Strategy::Normal); });
 
   TrafficStash::Guard guard(m_trafficStash);
-  std::unique_ptr<WorldGraph> baseGraph = MakeWorldGraph();
+  std::unique_ptr<WorldGraph> baseGraph = MakeWorldGraph(m_ignoreTrackAccessRestrictions);
 
   // Snap on the unbiased graph on purpose: PointsOnEdgesSnapping rejects candidates whose local
   // neighbourhood looks like a dead end, and it discovers that by walking GetEdgeList. Run through
@@ -1304,10 +1306,11 @@ RouterResultCode IndexRouter::CalculateTrackFollowingRoute(std::vector<m2::Point
   // start/finish edges would be discarded before the search even begins.
   PointsOnEdgesSnapping snapping(*this, *baseGraph);
   auto const legIndices = GetTrackLegIndices(centerline);
-  // A detour prefixes an ordinary route to the rejoin point, optionally via a stop.
+  // A detour prefixes a route to the rejoin point, optionally via a stop.
   CHECK_GREATER_OR_EQUAL(checkpoints.GetPoints().size(), legIndices.size(), ());
   size_t const approachLegs = checkpoints.GetPoints().size() - legIndices.size();
   CHECK_LESS_OR_EQUAL(approachLegs, 2, ());
+  CHECK(approachLegs > 0 || approach.empty(), ());
   TrackCorridorWorldGraph corridorGraph(*baseGraph, centerline);
 
   // NoLeaps, rather than the Joints mode pedestrians and bicycles normally get. Joints mode compresses
@@ -1328,15 +1331,21 @@ RouterResultCode IndexRouter::CalculateTrackFollowingRoute(std::vector<m2::Point
   for (size_t i = checkpoints.GetPassedIdx(); i < checkpoints.GetNumSubroutes(); ++i)
   {
     bool const isApproach = i < approachLegs;
-    m_estimator->SetStrategy(isApproach ? EdgeEstimator::Strategy::Normal : EdgeEstimator::Strategy::Shortest);
-    if (isApproach)
-      corridorGraph.ClearCorridor();
-    else
+    // A detour still rides the track it is leaving: its first leg follows |approach| and so gives up
+    // the track only where reaching the stop is worth more than staying on it. Only the leg coming
+    // back from the stop starts off the track, with nothing to follow until the rejoin point.
+    bool const onTrack = !isApproach || (i == 0 && approach.size() >= 2);
+    m_estimator->SetStrategy(onTrack ? EdgeEstimator::Strategy::Shortest : EdgeEstimator::Strategy::Normal);
+    if (!isApproach)
     {
       // The same road may occur on multiple visits. Only this occurrence belongs to this leg.
       auto const leg = i - approachLegs;
       corridorGraph.SetCenterline({centerline.begin() + legIndices[leg], centerline.begin() + legIndices[leg + 1] + 1});
     }
+    else if (onTrack)
+      corridorGraph.SetCenterline(approach);
+    else
+      corridorGraph.ClearCorridor();
     FakeEnding startEnding;
     FakeEnding finishEnding;
     bool startIsCodirectional = false;
@@ -1354,13 +1363,15 @@ RouterResultCode IndexRouter::CalculateTrackFollowingRoute(std::vector<m2::Point
                                       false /* isStartSegmentStrictForward */, corridorGraph);
     std::vector<Segment> subroute;
     RouterResultCode result = RouterResultCode::RouteNotFound;
-    // Widen only the failed leg, without discarding already routed checkpoints.
-    for (double const radiusM : {500.0, 1500.0, 5000.0})
+    // Widen only the failed leg, without discarding already routed checkpoints. A detour's stop can
+    // lie any distance off the track, so its approach drops the bound altogether rather than fail.
+    double constexpr kUnbounded = std::numeric_limits<double>::max();
+    for (double const radiusM : {500.0, 1500.0, isApproach ? kUnbounded : 5000.0})
     {
       corridorGraph.SetMaxCorridorRadiusM(radiusM);
       subroute.clear();
       result = CalculateSubrouteNoLeapsMode(subrouteStarter, delegate, progress, subroute);
-      if (isApproach || result == RouterResultCode::NoError || result == RouterResultCode::Cancelled ||
+      if (!onTrack || result == RouterResultCode::NoError || result == RouterResultCode::Cancelled ||
           result == RouterResultCode::NoCurrentPosition)
         break;
       LOG(LWARNING, ("No track-following route within", radiusM, "m of the track, widening the corridor"));
@@ -1390,7 +1401,7 @@ RouterResultCode IndexRouter::CalculateTrackFollowingRoute(std::vector<m2::Point
   return RedressRoute(segments, delegate.GetCancellable(), *starter, route);
 }
 
-std::unique_ptr<WorldGraph> IndexRouter::MakeWorldGraph()
+std::unique_ptr<WorldGraph> IndexRouter::MakeWorldGraph(bool ignoreAccessRestrictions)
 {
   // Use saved routing options for all types (car, bicycle, pedestrian).
   RoutingOptions const routingOptions = RoutingOptions::LoadCarOptionsFromSettings();
@@ -1405,7 +1416,7 @@ std::unique_ptr<WorldGraph> IndexRouter::MakeWorldGraph()
 
   auto indexGraphLoader = IndexGraphLoader::Create(
       m_vehicleType == VehicleType::Transit ? VehicleType::Pedestrian : m_vehicleType, m_loadAltitudes,
-      m_vehicleModelFactory, m_estimator, m_dataSource, routingOptions, m_currentTimeGetter);
+      m_vehicleModelFactory, m_estimator, m_dataSource, routingOptions, m_currentTimeGetter, ignoreAccessRestrictions);
 
   if (m_vehicleType != VehicleType::Transit)
   {

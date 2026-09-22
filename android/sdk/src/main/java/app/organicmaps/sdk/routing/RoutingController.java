@@ -355,6 +355,12 @@ public class RoutingController
 
   public void rebuildLastRoute()
   {
+    // Route options must rebuild the existing track, not cancel it and prepare a point-to-point route.
+    if (isTrackFollowMode())
+    {
+      rebuildTrackPlan();
+      return;
+    }
     setState(State.NONE);
     setBuildState(BuildState.NONE);
     prepare(getStartPoint(), getEndPoint());
@@ -483,7 +489,7 @@ public class RoutingController
   }
 
   // Keep the native track state; cancel()/prepare() would discard it. Build exactly once.
-  private void rebuildTrackPlan()
+  void rebuildTrackPlan()
   {
     final boolean wasNavigating = isNavigating();
     setState(State.PREPARE);

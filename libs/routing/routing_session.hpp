@@ -52,10 +52,11 @@ public:
   void BuildRoute(Checkpoints const & checkpoints, uint32_t timeoutSec);
 
   /// See IRouter::SetTrackCorridor. Stays in effect across rebuilds until cleared with an empty vector.
-  void SetTrackCorridor(std::vector<m2::PointD> centerline)
+  void SetTrackCorridor(std::vector<m2::PointD> centerline, std::vector<m2::PointD> approach,
+                        bool ignoreAccessRestrictions = false)
   {
     CHECK(m_router, ());
-    m_router->SetTrackCorridor(std::move(centerline));
+    m_router->SetTrackCorridor(std::move(centerline), std::move(approach), ignoreAccessRestrictions);
   }
 
   void RebuildRoute(m2::PointD const & startPoint, ReadyCallback const & readyCallback,

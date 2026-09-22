@@ -33,7 +33,8 @@ public:
   static std::unique_ptr<IndexGraphLoader> Create(VehicleType vehicleType, bool loadAltitudes,
                                                   std::shared_ptr<VehicleModelFactoryInterface> vehicleModelFactory,
                                                   std::shared_ptr<EdgeEstimator> estimator, MwmDataSource & dataSource,
-                                                  RoutingOptions routingOptions = {}, TimeGetterT timeGetter = {});
+                                                  RoutingOptions routingOptions = {}, TimeGetterT timeGetter = {},
+                                                  bool ignoreAccessRestrictions = false);
 };
 
 void DeserializeIndexGraph(MwmValue const & mwmValue, VehicleType vehicleType, IndexGraph & graph);

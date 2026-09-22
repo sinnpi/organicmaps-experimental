@@ -1285,6 +1285,17 @@ JNIEXPORT jboolean Java_app_organicmaps_sdk_Framework_nativeAddTrackDetour(JNIEn
   return frm()->GetRoutingManager().AddTrackDetour(std::move(stop));
 }
 
+JNIEXPORT jboolean Java_app_organicmaps_sdk_Framework_nativeGetTrackIgnoreAccessRestrictions(JNIEnv *, jclass)
+{
+  return frm()->GetRoutingManager().GetTrackIgnoreAccessRestrictions();
+}
+
+JNIEXPORT void Java_app_organicmaps_sdk_Framework_nativeSetTrackIgnoreAccessRestrictions(JNIEnv *, jclass,
+                                                                                         jboolean ignore)
+{
+  frm()->GetRoutingManager().SetTrackIgnoreAccessRestrictions(ignore);
+}
+
 JNIEXPORT jboolean Java_app_organicmaps_sdk_Framework_nativeIsTrackFollowMode(JNIEnv *, jclass)
 {
   return frm()->GetRoutingManager().IsTrackFollowMode();

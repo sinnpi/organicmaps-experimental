@@ -149,6 +149,9 @@ public:
   // going is decided by where the selected point falls relative to the user.
   PrepareTrackFollowResult PrepareTrackFollowToSelectedPoint(kml::TrackId trackId);
   bool IsTrackFollowMode() const { return m_trackFollowState.has_value(); }
+  bool GetTrackIgnoreAccessRestrictions() const;
+  // Applies on the next build. Per-track, never persisted as a global routing preference.
+  void SetTrackIgnoreAccessRestrictions(bool ignore);
 
   bool CanAddTrackDetour() const;
   // Keeps the track destination and adds one stop followed by a forward rejoin. BuildRoute() next.
@@ -442,6 +445,7 @@ private:
   struct TrackFollowState
   {
     kml::TrackId m_trackId = kml::kInvalidTrackId;
+    bool m_ignoreAccessRestrictions = false;
     // Corridor the router is biased toward, not a list of points it must visit.
     // See IRouter::SetTrackCorridor.
     std::vector<m2::PointD> m_centerline;

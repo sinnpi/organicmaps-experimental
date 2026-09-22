@@ -16,6 +16,10 @@
     android:theme="@style/MwmWidget.ToolbarTheme"
     tools:ignore="UnusedAttribute">
   </androidx.appcompat.widget.Toolbar>
+  <ScrollView
+    android:layout_width="match_parent"
+    android:layout_height="0dp"
+    android:layout_weight="1">
   <LinearLayout
     android:id="@+id/content"
     android:orientation="vertical"
@@ -109,5 +113,45 @@
       android:padding="@dimen/margin_half_double_plus"
       android:layout_height="match_parent"/>
   </LinearLayout>
+  <LinearLayout
+    android:id="@+id/track_access_option"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:visibility="gone">
+    <include layout="@layout/list_divider"/>
+    <LinearLayout
+      android:orientation="horizontal"
+      android:minHeight="@dimen/height_block_base"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:paddingEnd="@dimen/margin_base"
+      android:paddingStart="@dimen/margin_base">
+      <TextView
+        android:text="@string/track_ignore_access"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:layout_width="0dp"
+        android:layout_weight="1"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
+        android:labelFor="@id/ignore_track_access"
+        android:textColor="?android:attr/textColorPrimary"/>
+      <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/ignore_track_access"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:padding="@dimen/margin_half_double_plus"/>
+    </LinearLayout>
+    <TextView
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:paddingStart="@dimen/margin_base"
+      android:paddingEnd="@dimen/margin_base"
+      android:paddingBottom="@dimen/margin_base"
+      android:text="@string/track_ignore_access_description"
+      android:textAppearance="?android:attr/textAppearanceSmall"
+      android:textColor="?android:attr/textColorSecondary"/>
   </LinearLayout>
+  </LinearLayout>
+  </ScrollView>
 </LinearLayout>

@@ -199,12 +199,26 @@ UNIT_TEST(RoutingManager_PrepareTrackFollowCreatesOnlyTerminalRouteMarks)
   TEST(routePoints.back().m_pointType == RouteMarkType::Finish, ());
   TEST_EQUAL(routePoints.back().m_title, "Test track", ());
 
+  TEST(!routingManager.GetTrackIgnoreAccessRestrictions(), ());
+  routingManager.SetTrackIgnoreAccessRestrictions(true);
+  TEST(routingManager.GetTrackIgnoreAccessRestrictions(), ());
+  routingManager.CloseRouting(false /* removeRoutePoints */);
+  TEST(routingManager.GetTrackIgnoreAccessRestrictions(), ("Rebuild keeps the override"));
+  TEST(routingManager.PrepareTrackFollow(trackId, track_following::Direction::Reverse) ==
+           RoutingManager::PrepareTrackFollowResult::Success,
+       ());
+  TEST(!routingManager.GetTrackIgnoreAccessRestrictions(), ("A new track starts with restrictions enabled"));
+  routingManager.SetTrackIgnoreAccessRestrictions(true);
+
   auto const trackRouter = routingManager.GetRouter();
   routingManager.SetRouter(routing::RouterType::Vehicle);
   TEST(routingManager.GetRouter() == trackRouter, ());
 
   routingManager.RemoveRoutePoints();
   TEST(!routingManager.IsTrackFollowMode(), ());
+  TEST(!routingManager.GetTrackIgnoreAccessRestrictions(), ());
+  routingManager.SetTrackIgnoreAccessRestrictions(true);
+  TEST(!routingManager.GetTrackIgnoreAccessRestrictions(), ("Normal routes cannot opt in"));
 }
 UNIT_TEST(RoutingManager_TrackDetourKeepsDestinationAndCanBeRemoved)
 {
@@ -223,6 +237,7 @@ UNIT_TEST(RoutingManager_TrackDetourKeepsDestinationAndCanBeRemoved)
        ());
   auto const original = manager.GetRoutePoints();
 
+  manager.SetTrackIgnoreAccessRestrictions(true);
   // A preview is not an active ride and must not accept a detour.
   TEST(!manager.CanAddTrackDetour(), ());
   manager.RoutingSession().AssignRouteForTesting(MakeElevationRoute(300), routing::RouterResultCode::NoError);
@@ -234,6 +249,7 @@ UNIT_TEST(RoutingManager_TrackDetourKeepsDestinationAndCanBeRemoved)
   stop.m_position = mercator::FromLatLon(0.001, 0.005);
   TEST(manager.AddTrackDetour(std::move(stop)), ());
   TEST(manager.IsTrackFollowMode(), ());
+  TEST(manager.GetTrackIgnoreAccessRestrictions(), ("Detours keep the current track's option"));
   TEST(!manager.CanAddTrackDetour(), ());
   auto const points = manager.GetRoutePoints();
   TEST_EQUAL(points.size(), 3, ());

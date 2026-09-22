@@ -232,6 +232,10 @@ public class Framework
 
   public static native boolean nativeIsTrackFollowMode();
 
+  public static native boolean nativeGetTrackIgnoreAccessRestrictions();
+
+  public static native void nativeSetTrackIgnoreAccessRestrictions(boolean ignore);
+
   public static native boolean nativeCanAddTrackDetour();
 
   public static native boolean nativeAddTrackDetour(String title, String subtitle, double lat, double lon);

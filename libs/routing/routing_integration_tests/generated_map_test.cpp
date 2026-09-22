@@ -29,20 +29,31 @@ GeneratedMapTest::GeneratedMapTest(std::string const & osmFile, std::string cons
 
 std::set<uint64_t> GeneratedMapTest::GetUsedOsmWays(routing::Route const & route)
 {
+  std::set<uint64_t> ways;
+  for (auto const & [way, distanceM] : GetOsmWayDistancesMeters(route))
+    ways.insert(way);
+  return ways;
+}
+
+std::map<uint64_t, double> GeneratedMapTest::GetOsmWayDistancesMeters(routing::Route const & route)
+{
   // ParseWaysFeatureIdToOsmIdMapping fills only way features, so GetSerialId() is the OSM way id.
   routing::FeatureIdToOsmId const fid2osm = m_generator.LoadFID2OsmID(m_mwmName);
 
-  std::set<uint64_t> ways;
+  std::map<uint64_t, double> distances;
+  double previousM = 0.0;
   for (auto const & routeSegment : route.GetRouteSegments())
   {
+    double const distanceM = routeSegment.GetDistFromBeginningMeters() - previousM;
+    previousM = routeSegment.GetDistFromBeginningMeters();
     auto const & segment = routeSegment.GetSegment();
     if (!segment.IsRealSegment())
       continue;
 
     auto const it = fid2osm.find(segment.GetFeatureId());
     if (it != fid2osm.end())
-      ways.insert(it->second.GetSerialId());
+      distances[it->second.GetSerialId()] += distanceM;
   }
-  return ways;
+  return distances;
 }
 }  // namespace integration

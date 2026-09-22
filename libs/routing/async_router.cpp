@@ -183,10 +183,13 @@ void AsyncRouter::SetGuidesTracks(GuidesTracks && guides)
   m_guides = std::move(guides);
 }
 
-void AsyncRouter::SetTrackCorridor(std::vector<m2::PointD> && centerline)
+void AsyncRouter::SetTrackCorridor(std::vector<m2::PointD> && centerline, std::vector<m2::PointD> && approach,
+                                   bool ignoreAccessRestrictions)
 {
   lock_guard ul(m_guard);
   m_trackCorridor = std::move(centerline);
+  m_trackApproach = std::move(approach);
+  m_ignoreTrackAccessRestrictions = !m_trackCorridor.empty() && ignoreAccessRestrictions;
 }
 
 void AsyncRouter::ClearState()
@@ -306,7 +309,8 @@ void AsyncRouter::CalculateRoute()
     router->SetGuides(std::move(m_guides));
     m_guides.clear();
     // Copied, not moved: the corridor stays in effect for later rebuilds after a deviation.
-    router->SetTrackCorridor(std::vector<m2::PointD>(m_trackCorridor));
+    router->SetTrackCorridor(std::vector<m2::PointD>(m_trackCorridor), std::vector<m2::PointD>(m_trackApproach),
+                             m_ignoreTrackAccessRestrictions);
   }
 
   auto result = std::make_shared<RoutesResult>(router->GetName(), routeId);

@@ -74,10 +74,7 @@ public:
   {
     return m_inner.HeuristicCostEstimate(from, to);
   }
-  RouteWeight CalcSegmentWeight(Segment const & segment, EdgeEstimator::Purpose purpose) override
-  {
-    return m_inner.CalcSegmentWeight(segment, purpose);
-  }
+  RouteWeight CalcSegmentWeight(Segment const & segment, EdgeEstimator::Purpose purpose) override;
   RouteWeight CalcLeapWeight(ms::LatLon const & from, ms::LatLon const & to, NumMwmId mwmId) const override
   {
     return m_inner.CalcLeapWeight(from, to, mwmId);
@@ -174,6 +171,7 @@ private:
 
   bool AdjustForCorridor(Segment const & judged, RouteWeight & weight) const;
   Penalty CalcPenalty(Segment const & judged) const;
+  Penalty const & GetPenalty(Segment const & judged) const;
   ProjectionsT ProjectOnCorridor(PointsT const & points) const;
 
   WorldGraph & m_inner;

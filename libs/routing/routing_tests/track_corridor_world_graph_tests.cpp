@@ -15,11 +15,14 @@
 #include "routing/segment.hpp"
 #include "routing/world_graph.hpp"
 
+#include "routing_common/bicycle_model.hpp"
+
 #include "indexer/classificator_loader.hpp"
 
 #include "geometry/mercator.hpp"
 #include "geometry/point2d.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <vector>
 
@@ -334,6 +337,85 @@ UNIT_TEST(TrackCorridorWorldGraph_TakesTheSwitchbacksItsTrackTakes)
   TestRouteGeometry(*starter, AlgorithmForWorldGraph::Result::OK, zigzag);
 }
 
+// A 14 m connector bypasses a kilometre-long loop. Capping the skipped-track charge at
+// a multiple of the connector's length makes the shortcut cheaper than following the loop.
+std::vector<m2::PointD> MakeLongLoop()
+{
+  return {mercator::FromLatLon(0.0, -0.0003),  mercator::FromLatLon(0.0, 0.0),
+          mercator::FromLatLon(0.0045, 0.0),   mercator::FromLatLon(0.0045, 0.000126),
+          mercator::FromLatLon(0.0, 0.000126), mercator::FromLatLon(0.0, 0.000426)};
+}
+
+std::shared_ptr<EdgeEstimator> MakeBicycleTrackEstimator()
+{
+  auto estimator = EdgeEstimator::Create(VehicleType::Bicycle, BicycleModel(), nullptr, nullptr, nullptr);
+  estimator->SetStrategy(EdgeEstimator::Strategy::Shortest);
+  return estimator;
+}
+
+UNIT_TEST(TrackCorridorWorldGraph_ShortConnectorDoesNotSkipLongLoop)
+{
+  EnsureClassificatorLoaded();
+  auto const road = MakeLongLoop();
+  for (size_t const subdivisions : {1, 4})
+  {
+    for (double const offset : {0.0, 0.000072})  // Also allow about 8 m of recording offset.
+    {
+      for (bool const reverse : {false, true})
+      {
+        auto loader = std::make_unique<TestGeometryLoader>();
+        loader->AddRoad(0, false, 5.0, RoadGeometry::Points(road));
+        std::vector<m2::PointD> shortcut;
+        for (size_t i = 0; i <= subdivisions; ++i)
+          shortcut.push_back(road[1] + (road[4] - road[1]) * (static_cast<double>(i) / subdivisions));
+        loader->AddRoad(1, false, 5.0, RoadGeometry::Points(shortcut));
+        auto graph = BuildWorldGraph(
+            std::move(loader), MakeBicycleTrackEstimator(),
+            {MakeJoint({{0, 1}, {1, 0}}), MakeJoint({{0, 4}, {1, static_cast<uint32_t>(subdivisions)}})});
+        auto centerline = road;
+        for (auto & point : centerline)
+          point.y += offset;
+        auto expected = road;
+        if (reverse)
+        {
+          std::reverse(centerline.begin(), centerline.end());
+          std::reverse(expected.begin(), expected.end());
+        }
+        TrackCorridorWorldGraph corridor(*graph, centerline);
+        auto const start = MakeFakeEnding(0, reverse ? 4 : 0, expected.front(), corridor);
+        auto const finish = MakeFakeEnding(0, reverse ? 0 : 4, expected.back(), corridor);
+        auto starter = MakeStarter(start, finish, corridor);
+        TestRouteGeometry(*starter, AlgorithmForWorldGraph::Result::OK, expected);
+      }
+    }
+  }
+}
+
+UNIT_TEST(TrackCorridorWorldGraph_UnavoidableShortcutRemainsRoutable)
+{
+  EnsureClassificatorLoaded();
+  auto const track = MakeLongLoop();
+  std::vector<m2::PointD> const road = {track[0], track[1], track[4], track[5]};
+  auto loader = std::make_unique<TestGeometryLoader>();
+  loader->AddRoad(0, false, 5.0, RoadGeometry::Points(road));
+  auto graph = BuildWorldGraph(std::move(loader), MakeBicycleTrackEstimator(), {});
+  for (bool const reverse : {false, true})
+  {
+    auto centerline = track;
+    auto expected = road;
+    if (reverse)
+    {
+      std::reverse(centerline.begin(), centerline.end());
+      std::reverse(expected.begin(), expected.end());
+    }
+    TrackCorridorWorldGraph corridor(*graph, centerline);
+    auto const start = MakeFakeEnding(0, reverse ? 2 : 0, expected.front(), corridor);
+    auto const finish = MakeFakeEnding(0, reverse ? 0 : 2, expected.back(), corridor);
+    auto starter = MakeStarter(start, finish, corridor);
+    TestRouteGeometry(*starter, AlgorithmForWorldGraph::Result::OK, expected);
+  }
+}
+
 UNIT_TEST(TrackCorridorWorldGraph_PricesAnEdgeAlikeInBothDirections)
 {
   EnsureClassificatorLoaded();
@@ -416,9 +498,160 @@ UNIT_TEST(TrackCorridorWorldGraph_DropsEdgesBeyondHardBoundAndRecoversAfterWiden
   }
 
   corridorGraph.SetMaxCorridorRadiusM(5000.0);
+  // Widening the hard bound must not remove the cap on the distance-from-track charge.
+  Segment const segment(kTestNumMwmId, 0, 0, true);
+  astar::VertexData<Segment, RouteWeight> const vertex(segment, RouteWeight(0.0));
+  WorldGraph::SegmentEdgeListT plainEdges, corridorEdges;
+  graph->GetEdgeList(vertex, true, true, false, plainEdges);
+  corridorGraph.GetEdgeList(vertex, true, true, false, corridorEdges);
+  TEST_EQUAL(plainEdges.size(), 1, ());
+  TEST_EQUAL(corridorEdges.size(), 1, ());
+  TEST_ALMOST_EQUAL_ABS(corridorEdges[0].GetWeight().GetWeight(), 11.0 * plainEdges[0].GetWeight().GetWeight(), 1e-6,
+                        ());
   {
     auto starter = MakeStarter(start, finish, corridorGraph);
     TestRouteGeometry(*starter, AlgorithmForWorldGraph::Result::OK, {left, mid, right});
   }
+}
+// A track loop with public terminal roads and a short public bypass. Keep restrictions on
+// interior real edges so fake start/finish edges cannot hide them from the search.
+std::unique_ptr<SingleVehicleWorldGraph> BuildAccessLoop(bool oneWay = false, bool passThrough = true)
+{
+  auto const track = MakeLongLoop();
+  auto loader = std::make_unique<TestGeometryLoader>();
+  loader->AddRoad(0, false, 5.0, RoadGeometry::Points({track[0], track[1]}));
+  loader->AddRoad(1, oneWay, 5.0, RoadGeometry::Points({track[1], track[2], track[3], track[4]}));
+  loader->SetPassThroughAllowed(1, passThrough);
+  loader->AddRoad(2, false, 5.0, RoadGeometry::Points({track[4], track[5]}));
+  loader->AddRoad(3, false, 5.0, RoadGeometry::Points({track[1], track[4]}));
+  return BuildWorldGraph(std::move(loader), MakeBicycleTrackEstimator(),
+                         {MakeJoint({{0, 1}, {1, 0}, {3, 0}}), MakeJoint({{1, 3}, {2, 0}, {3, 1}})});
+}
+
+void TestAccessLoop(SingleVehicleWorldGraph & graph, bool reverse, bool followsTrack)
+{
+  auto track = MakeLongLoop();
+  std::vector<m2::PointD> expected =
+      followsTrack ? track : std::vector<m2::PointD>{track[0], track[1], track[4], track[5]};
+  if (reverse)
+  {
+    std::reverse(track.begin(), track.end());
+    std::reverse(expected.begin(), expected.end());
+  }
+  TrackCorridorWorldGraph corridor(graph, track);
+  auto const start = MakeFakeEnding(reverse ? 2 : 0, 0, track.front(), corridor);
+  auto const finish = MakeFakeEnding(reverse ? 0 : 2, 0, track.back(), corridor);
+  auto starter = MakeStarter(start, finish, corridor);
+  TestRouteGeometry(*starter, AlgorithmForWorldGraph::Result::OK, expected);
+}
+
+UNIT_TEST(TrackCorridorWorldGraph_AccessOverrideIsReversible)
+{
+  EnsureClassificatorLoaded();
+  for (bool const node : {false, true})
+  {
+    for (auto const type : {RoadAccess::Type::Private, RoadAccess::Type::Destination, RoadAccess::Type::No})
+    {
+      for (bool const conditional : {false, true})
+      {
+        auto graph = BuildAccessLoop();
+        auto & index = graph->GetIndexGraph(kTestNumMwmId);
+        RoadAccess access;
+        if (conditional)
+        {
+          RoadAccess::Conditional condition;
+          condition.Insert(type, osmoh::OpeningHours("24/7"));
+          if (node)
+            access.SetAccessConditional({}, {{RoadPoint(1, 1), condition}});
+          else
+            access.SetAccessConditional({{1, condition}}, {});
+        }
+        else if (node)
+          access.SetAccess({}, {{RoadPoint(1, 1), type}});
+        else
+          access.SetAccess({{1, type}}, {});
+        index.SetRoadAccess(std::move(access));
+        for (bool const ignore : {false, true, false})
+        {
+          index.SetIgnoreAccessRestrictions(ignore);
+          for (bool const reverse : {false, true})
+            TestAccessLoop(*graph, reverse, ignore);
+        }
+      }
+    }
+  }
+}
+
+UNIT_TEST(TrackCorridorWorldGraph_AccessOverrideIncludesPassThrough)
+{
+  EnsureClassificatorLoaded();
+  auto graph = BuildAccessLoop(false /* oneWay */, false /* passThrough */);
+  for (bool const ignore : {false, true, false})
+  {
+    graph->GetIndexGraph(kTestNumMwmId).SetIgnoreAccessRestrictions(ignore);
+    TEST_EQUAL(graph->IsPassThroughAllowed(kTestNumMwmId, 1), ignore, ());
+    for (bool const reverse : {false, true})
+      TestAccessLoop(*graph, reverse, ignore);
+  }
+}
+
+UNIT_TEST(TrackCorridorWorldGraph_AccessOverrideKeepsOneWayAndTurnRules)
+{
+  EnsureClassificatorLoaded();
+  auto graph = BuildAccessLoop(true /* oneWay */);
+  auto & index = graph->GetIndexGraph(kTestNumMwmId);
+  index.SetIgnoreAccessRestrictions(true);
+  TestAccessLoop(*graph, false /* reverse */, true /* followsTrack */);
+  TestAccessLoop(*graph, true /* reverse */, false /* followsTrack */);
+  index.SetRestrictions({{0, 1}});
+  TestAccessLoop(*graph, false /* reverse */, false /* followsTrack */);
+}
+UNIT_TEST(TrackCorridorWorldGraph_SnappedRoadsCannotBypassTheTrackPenalty)
+{
+  EnsureClassificatorLoaded();
+  auto const a = mercator::FromLatLon(0.0, 0.0);
+  auto const b = mercator::FromLatLon(0.0, 0.003);
+  auto const c = mercator::FromLatLon(0.003, 0.003);
+  auto const d = mercator::FromLatLon(0.0015, 0.0015);
+  auto loader = std::make_unique<TestGeometryLoader>();
+  loader->AddRoad(0, false, 5.0, RoadGeometry::Points({a, b}));
+  loader->AddRoad(1, false, 5.0, RoadGeometry::Points({b, c}));
+  loader->AddRoad(2, false, 5.0, RoadGeometry::Points({a, d}));
+  loader->AddRoad(3, false, 5.0, RoadGeometry::Points({d, c}));
+  auto graph = BuildWorldGraph(std::move(loader), MakeBicycleTrackEstimator(),
+                               {MakeJoint({{0, 0}, {2, 0}}), MakeJoint({{0, 1}, {1, 0}}),
+                                MakeJoint({{2, 1}, {3, 0}}), MakeJoint({{1, 1}, {3, 1}})});
+  for (bool const reverse : {false, true})
+  {
+    std::vector<m2::PointD> track = {a, b, c};
+    if (reverse)
+      std::reverse(track.begin(), track.end());
+    TrackCorridorWorldGraph corridor(*graph, track);
+    // At a junction, snapping offers both incident roads. Every candidate is represented by a
+    // starter-owned partial road, not just an edge through WorldGraph::GetEdgeList().
+    auto start = MakeFakeEnding({Segment(kTestNumMwmId, 0, 0, true), Segment(kTestNumMwmId, 2, 0, true)}, a, corridor);
+    auto finish = MakeFakeEnding({Segment(kTestNumMwmId, 1, 0, true), Segment(kTestNumMwmId, 3, 0, true)}, c, corridor);
+    if (reverse)
+      std::swap(start, finish);
+    auto starter = MakeStarter(start, finish, corridor);
+    TestRouteGeometry(*starter, AlgorithmForWorldGraph::Result::OK, track);
+  }
+}
+
+UNIT_TEST(TrackCorridorWorldGraph_DirectSegmentWeightKeepsETAUnchanged)
+{
+  EnsureClassificatorLoaded();
+  auto const a = mercator::FromLatLon(0.0, 0.0);
+  auto const b = mercator::FromLatLon(0.0, 0.003);
+  auto const c = mercator::FromLatLon(0.0005, 0.0015);
+  auto graph = BuildBendWithShortcutGraph(a, c, b);
+  TrackCorridorWorldGraph corridor(*graph, {a, c, b});
+  Segment const shortcut(kTestNumMwmId, 2, 0, true);
+  auto const plain = graph->CalcSegmentWeight(shortcut, EdgeEstimator::Purpose::Weight);
+  TEST_GREATER(corridor.CalcSegmentWeight(shortcut, EdgeEstimator::Purpose::Weight).GetWeight(), plain.GetWeight(), ());
+  TEST_EQUAL(corridor.CalcSegmentWeight(shortcut, EdgeEstimator::Purpose::ETA),
+             graph->CalcSegmentWeight(shortcut, EdgeEstimator::Purpose::ETA), ());
+  corridor.ClearCorridor();
+  TEST_EQUAL(corridor.CalcSegmentWeight(shortcut, EdgeEstimator::Purpose::Weight), plain, ());
 }
 }  // namespace track_corridor_world_graph_tests

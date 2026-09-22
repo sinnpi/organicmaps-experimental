@@ -12,6 +12,7 @@ import androidx.appcompat.widget.SwitchCompat;
 import androidx.core.view.ViewCompat;
 import app.organicmaps.R;
 import app.organicmaps.base.BaseMwmToolbarFragment;
+import app.organicmaps.sdk.Framework;
 import app.organicmaps.sdk.routing.RoutingOptions;
 import app.organicmaps.sdk.settings.RoadType;
 import app.organicmaps.util.WindowInsetUtils.PaddingInsetsListener;
@@ -28,6 +29,8 @@ public class DrivingOptionsFragment extends BaseMwmToolbarFragment
   @NonNull
   private Set<RoadType> mRoadTypes = Collections.emptySet();
   private View mContent;
+  private static final String BUNDLE_IGNORE_TRACK_ACCESS = "ignore_track_access";
+  private boolean mInitialIgnoreTrackAccess;
 
   @Nullable
   @Override
@@ -40,6 +43,8 @@ public class DrivingOptionsFragment extends BaseMwmToolbarFragment
     mRoadTypes = savedInstanceState != null && savedInstanceState.containsKey(BUNDLE_ROAD_TYPES)
                    ? makeRouteTypes(savedInstanceState)
                    : RoutingOptions.getActiveRoadTypes();
+    mInitialIgnoreTrackAccess = savedInstanceState == null ? Framework.nativeGetTrackIgnoreAccessRestrictions()
+                                                           : savedInstanceState.getBoolean(BUNDLE_IGNORE_TRACK_ACCESS);
     return root;
   }
 
@@ -65,12 +70,14 @@ public class DrivingOptionsFragment extends BaseMwmToolbarFragment
       savedRoadTypes.add(each.ordinal());
     }
     outState.putIntegerArrayList(BUNDLE_ROAD_TYPES, savedRoadTypes);
+    outState.putBoolean(BUNDLE_IGNORE_TRACK_ACCESS, mInitialIgnoreTrackAccess);
   }
 
   private boolean areSettingsNotChanged()
   {
     Set<RoadType> lastActiveRoadTypes = RoutingOptions.getActiveRoadTypes();
-    return mRoadTypes.equals(lastActiveRoadTypes);
+    boolean accessUnchanged = mInitialIgnoreTrackAccess == Framework.nativeGetTrackIgnoreAccessRestrictions();
+    return mRoadTypes.equals(lastActiveRoadTypes) && accessUnchanged;
   }
 
   @Override
@@ -92,6 +99,15 @@ public class DrivingOptionsFragment extends BaseMwmToolbarFragment
   private void initViews(@NonNull View root)
   {
     mContent = root.findViewById(R.id.content);
+
+    boolean trackOptions =
+        requireActivity().getIntent().getBooleanExtra(DrivingOptionsActivity.EXTRA_ROUTE_OPTIONS, false)
+        && Framework.nativeIsTrackFollowMode();
+    root.findViewById(R.id.track_access_option).setVisibility(trackOptions ? View.VISIBLE : View.GONE);
+    SwitchCompat ignoreAccess = root.findViewById(R.id.ignore_track_access);
+    ignoreAccess.setChecked(Framework.nativeGetTrackIgnoreAccessRestrictions());
+    ignoreAccess.setOnCheckedChangeListener(
+        (button, checked) -> Framework.nativeSetTrackIgnoreAccessRestrictions(checked));
 
     SwitchCompat tollsBtn = root.findViewById(R.id.avoid_tolls_btn);
     tollsBtn.setChecked(RoutingOptions.hasOption(RoadType.Toll));
