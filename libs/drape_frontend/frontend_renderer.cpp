@@ -370,10 +370,10 @@ void FrontendRenderer::AcceptMessage(ref_ptr<Message> message)
     TUserMarksRenderData marksRenderData = msg->AcceptRenderData();
     for (auto & renderData : marksRenderData)
     {
-      // Route points and search results are the marks the low power mode keeps: both are there
-      // because the user asked for them, unlike the map's own marks.
+      // Keep user-requested tracks, route points and search results, unlike the map's own marks.
       auto const layer = GetDepthLayer(renderData.m_state);
-      if (m_lowPowerNavigationMode && layer != DepthLayer::RoutingMarkLayer && layer != DepthLayer::SearchMarkLayer)
+      if (m_lowPowerNavigationMode && layer != DepthLayer::UserLineLayer && layer != DepthLayer::RoutingMarkLayer &&
+          layer != DepthLayer::SearchMarkLayer)
         continue;
 
       if (renderData.m_tileKey.m_zoomLevel == GetCurrentZoom() && CheckTileGenerations(renderData.m_tileKey))
@@ -1544,9 +1544,12 @@ void FrontendRenderer::RenderScene(ScreenBase const & modelView, bool activeFram
 
     if (m_lowPowerNavigationMode)
     {
-      // Keep only dim line work for orientation, then draw the route and its small endpoint/safety marks over
+      // Keep dim line work for orientation, then draw tracks, the route and its endpoint/safety marks over
       // the true-black clear color. Map labels, area fills, buildings, traffic and other overlays stay suppressed.
       RenderLowPowerContextLayer(modelView);
+      RenderUserMarksLayer(modelView, DepthLayer::UserLineLayer);
+      m_gpsTrackRenderer->RenderTrack(m_context, make_ref(m_gpuProgramManager), modelView, GetCurrentZoom(),
+                                      m_frameValues);
       RenderRouteLayer(modelView);
       {
         StencilWriterGuard guard(make_ref(m_postprocessRenderer), m_context);
