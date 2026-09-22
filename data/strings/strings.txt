@@ -45147,6 +45147,15 @@ comment = Action that builds a navigable route along an imported track, towards 
 tags = android-app,apple-maps
 en = Follow track to end
 
+[track_ignore_access]
+  tags = android-app
+  comment = Switch in route options, only while following an imported track. Does not override one-way or turn rules.
+  en = Ignore access restrictions
+
+[track_ignore_access_description]
+  tags = android-app
+  en = For this track only. May include private or closed roads and gates. Check permission and access yourself. One-way and turn rules still apply.
+
 [follow_track_reverse]
 comment = Action that builds a navigable route along an imported track, towards the start of the track.
 tags = android-app,apple-maps
