@@ -154,6 +154,7 @@ public class MapButtonsController extends Fragment
     final FloatingActionButton helpButton = mFrame.findViewById(R.id.help_button);
     final View zoomFrame = mFrame.findViewById(R.id.zoom_buttons_container);
     final FloatingActionButton oledPowerSave = mFrame.findViewById(R.id.oled_power_save);
+    UiUtils.showIf(Config.isOledPowerSaveFeatureEnabled(), oledPowerSave);
     oledPowerSave.setOnClickListener((v) -> mMapButtonClickListener.onMapButtonClick(MapButtons.oledPowerSave));
     final FloatingActionButton zoomIn = mFrame.findViewById(R.id.nav_zoom_in);
     zoomIn.setOnClickListener((v) -> mMapButtonClickListener.onMapButtonClick(MapButtons.zoomIn));
@@ -664,6 +665,7 @@ public class MapButtonsController extends Fragment
   public void onResume()
   {
     super.onResume();
+    UiUtils.showIf(Config.isOledPowerSaveFeatureEnabled(), mFrame.findViewById(R.id.oled_power_save));
     updateButtonsScale();
     if (mMapButtonsViewModel.getLayoutMode().getValue() == LayoutMode.navigation)
       mSearchWheel.onResume();

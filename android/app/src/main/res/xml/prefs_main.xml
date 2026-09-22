@@ -201,6 +201,13 @@
       app:singleLineTitle="false"
       android:defaultValue="false"
       android:order="2" />
+    <SwitchPreferenceCompat
+      android:key="@string/pref_oled_power_save_feature"
+      android:title="@string/enable_oled_power_save"
+      android:summary="@string/enable_oled_power_save_summary"
+      app:singleLineTitle="false"
+      android:defaultValue="false"
+      android:order="3" />
     <Preference
       android:key="@string/pref_nav_search_options"
       android:title="@string/pref_nav_search_options_title"

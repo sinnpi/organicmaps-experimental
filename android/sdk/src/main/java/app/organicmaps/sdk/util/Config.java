@@ -48,6 +48,7 @@ public final class Config
   private static final String KEY_PREF_TRACK_FOLLOW = "TrackFollowEnabled";
   private static final String KEY_PREF_NAV_ELEVATION_PROFILE = "NavElevationProfileEnabled";
   private static final String KEY_PREF_OLED_POWER_SAVE = "OledPowerSaveEnabled";
+  private static final String KEY_PREF_OLED_POWER_SAVE_FEATURE = "OledPowerSaveFeatureEnabled";
   private static final String KEY_PREF_MAP_BUTTONS_SCALE = "MapButtonsScale";
   private static final String KEY_PREF_NAV_SEARCH_OPTIONS = "NavSearchOptions";
 
@@ -217,9 +218,21 @@ public final class Config
     setBool(KEY_PREF_NAV_ELEVATION_PROFILE, enabled);
   }
 
+  public static boolean isOledPowerSaveFeatureEnabled()
+  {
+    return getBool(KEY_PREF_OLED_POWER_SAVE_FEATURE);
+  }
+
+  public static void setOledPowerSaveFeatureEnabled(boolean enabled)
+  {
+    setBool(KEY_PREF_OLED_POWER_SAVE_FEATURE, enabled);
+    if (!enabled)
+      setOledPowerSaveEnabled(false);
+  }
+
   public static boolean isOledPowerSaveEnabled()
   {
-    return getBool(KEY_PREF_OLED_POWER_SAVE);
+    return isOledPowerSaveFeatureEnabled() && getBool(KEY_PREF_OLED_POWER_SAVE);
   }
 
   public static void setOledPowerSaveEnabled(boolean enabled)
