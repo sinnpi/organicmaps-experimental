@@ -1798,6 +1798,33 @@ std::optional<m2::AnyRectD> RoutingManager::GetRouteRectBetween(double fromMeter
   return m2::AnyRectD(origin, angle, local);
 }
 
+std::vector<route_places::RoutePoint> RoutingManager::GetRoutePointsBetween(double fromMeters, double toMeters) const
+{
+  auto const * route = m_routingSession.GetRoute();
+  if (!route || !route->IsValid())
+    return {};
+
+  auto const & distances = route->GetSegDistanceMeters();
+  auto const & points = route->GetPoly().GetPoints();
+  fromMeters = std::clamp(fromMeters, 0.0, distances.back());
+  toMeters = std::clamp(toMeters, fromMeters, distances.back());
+  if (fromMeters == toMeters)
+    return {};
+
+  std::vector<route_places::RoutePoint> result;
+  result.push_back({fromMeters, m2::InterpolatePointAtDistance(distances, points, fromMeters)});
+  for (size_t i = 0; i < distances.size(); ++i)
+  {
+    if (distances[i] <= fromMeters)
+      continue;
+    if (distances[i] >= toMeters)
+      break;
+    result.push_back({distances[i], points[i + 1]});
+  }
+  result.push_back({toMeters, m2::InterpolatePointAtDistance(distances, points, toMeters)});
+  return result;
+}
+
 std::optional<m2::RectD> RoutingManager::GetRouteAheadRect(double maxAheadMeters) const
 {
   auto const fromMeters = GetRouteDistanceFromBeginMeters();
@@ -1810,36 +1837,6 @@ std::optional<m2::RectD> RoutingManager::GetRouteAheadRect(double maxAheadMeters
     return std::nullopt;
 
   return rect->GetGlobalRect();
-}
-
-std::optional<RoutingManager::RoutePosition> RoutingManager::GetRoutePosition(m2::PointD const & point) const
-{
-  auto const * route = m_routingSession.GetRoute();
-  if (!route || !route->IsValid())
-    return std::nullopt;
-
-  auto const & points = route->GetPoly().GetPoints();
-
-  size_t closestSegment = 0;
-  m2::PointD closestPoint;
-  double minSquaredDistance = std::numeric_limits<double>::max();
-  for (size_t i = 1; i < points.size(); ++i)
-  {
-    auto const projection = m2::ParametrizedSegment<m2::PointD>(points[i - 1], points[i]).ClosestPointTo(point);
-    double const squaredDistance = projection.SquaredLength(point);
-    if (squaredDistance >= minSquaredDistance)
-      continue;
-
-    minSquaredDistance = squaredDistance;
-    closestSegment = i;
-    closestPoint = projection;
-  }
-
-  // Segment distances are cumulative and given for the far end of each segment.
-  auto const & distances = route->GetSegDistanceMeters();
-  double const toSegment = closestSegment > 1 ? distances[closestSegment - 2] : 0.0;
-  return RoutePosition{toSegment + mercator::DistanceOnEarth(points[closestSegment - 1], closestPoint),
-                       mercator::DistanceOnEarth(point, closestPoint)};
 }
 
 void RoutingManager::SetRouter(RouterType type)

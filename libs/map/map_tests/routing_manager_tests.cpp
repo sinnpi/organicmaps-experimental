@@ -116,6 +116,34 @@ UNIT_TEST(RoutingManager_ElevationBeforeAndDuringNavigationForAllRouters)
   manager.SetRouter(originalRouter);
 }
 
+UNIT_TEST(RoutingManager_RoutePlacesGeometrySnapshot)
+{
+  Framework framework(FrameworkParams(false /* m_enableDiffs */));
+  auto & manager = framework.GetRoutingManager();
+  TEST(manager.GetRoutePointsBetween(0, 1000).empty(), ());
+  auto & session = manager.RoutingSession();
+  session.AssignRouteForTesting(MakeElevationRoute(300), routing::RouterResultCode::NoError);
+  double const length = session.GetRoute()->GetSegDistanceMeters().back();
+  auto const snapshot = manager.GetRoutePointsBetween(length * 0.25, length * 0.75);
+  TEST_EQUAL(snapshot.size(), 3, ());
+  for (size_t i = 0; i < snapshot.size(); ++i)
+  {
+    double const distance = length * (i + 1) * 0.25;
+    TEST_ALMOST_EQUAL_ABS(snapshot[i].m_distanceMeters, distance, 0.001, (i));
+    TEST_EQUAL(snapshot[i].m_point, manager.GetRoutePointAtDistance(distance).value(), (i));
+  }
+  auto const full = manager.GetRoutePointsBetween(-100, length + 100);
+  TEST_EQUAL(full.size(), 3, ());
+  TEST_EQUAL(full.front().m_distanceMeters, 0, ());
+  TEST_EQUAL(full.back().m_distanceMeters, length, ());
+  TEST(manager.GetRoutePointsBetween(length, length + 100).empty(), ());
+  TEST(manager.GetRoutePointsBetween(1000, 500).empty(), ());
+  // The snapshot must outlive route replacement/reset without sharing mutable routing state.
+  session.Reset();
+  TEST_EQUAL(snapshot.size(), 3, ());
+  TEST_EQUAL(snapshot[1].m_point, mercator::FromLatLon(0.0, 0.01), ());
+}
+
 UNIT_TEST(RoutingManager_ContinueRouteToPointAtLimitKeepsFinish)
 {
   Framework framework(FrameworkParams(false /* m_enableDiffs */));
@@ -204,8 +232,8 @@ UNIT_TEST(RoutingManager_RouteProgressIsEmptyWithoutRoute)
   TEST(!routingManager.GetRouteAheadRect(1000.0).has_value(), ());
   TEST(!routingManager.HasRouteAltitude(), ());
 
-  // Search asks this for every result it is about to put on the map.
-  TEST(!routingManager.GetRoutePosition(mercator::FromLatLon(0.0, 0.0)).has_value(), ());
+  // Search asks this for the stretch of route it puts its results along.
+  TEST(routingManager.GetRoutePointsBetween(0.0, 1000.0).empty(), ());
 
   ElevationInfo ei;
   TEST(!routingManager.GetRouteElevationInfo(ei), ());

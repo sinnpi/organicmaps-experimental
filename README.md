@@ -6,6 +6,7 @@ An unofficial, experimental fork focused on long-distance cycling. Its main Andr
 - **Resupply detours:** visit a stop, rejoin the track ahead, and continue to the original destination.
 - **Search along the route:** find places ahead and configure each navigation search-wheel slot as a category, free-text Search, or Hidden.
 - **Interactive elevation profiles:** inspect upcoming terrain and its position on the map during navigation.
+- **Mapped places ahead:** water, grocery, and café candidates above the elevation profile, with filters and clustered markers. Availability and access are unverified.
 - **Low-power navigation:** sparse OLED mode, adjustable navigation controls, and refresh-rate settings.
 
 The experimental Android app installs alongside the official app. Features are still being tested; battery savings depend on the device and settings.

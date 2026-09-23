@@ -25,6 +25,7 @@ set(SRC
   app/organicmaps/sdk/search/DisplayedCategories.cpp
   app/organicmaps/sdk/search/SearchEngine.cpp
   app/organicmaps/sdk/search/SearchRecents.cpp
+  app/organicmaps/sdk/routing/RoutePlace.cpp
   app/organicmaps/sdk/routing/RoutingJni.cpp
   app/organicmaps/sdk/routing/RoutingJni.hpp
   app/organicmaps/sdk/ChoosePositionMode.cpp

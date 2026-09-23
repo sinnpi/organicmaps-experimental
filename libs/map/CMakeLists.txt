@@ -50,6 +50,8 @@ set(SRC
   power_management/power_management_schemas.hpp
   raster_tile_provider.cpp
   raster_tile_provider.hpp
+  route_places.cpp
+  route_places.hpp
   routing_manager.cpp
   routing_manager.hpp
   routing_mark.cpp

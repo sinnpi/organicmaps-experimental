@@ -2,6 +2,7 @@
 
 #include "map/bookmark_manager.hpp"
 #include "map/extrapolation/extrapolator.hpp"
+#include "map/route_places.hpp"
 #include "map/routing_mark.hpp"
 #include "map/track_following.hpp"
 #include "map/transit/transit_display.hpp"
@@ -303,18 +304,9 @@ public:
   /// \return Nullopt if the route is invalid.
   std::optional<m2::RectD> GetRouteAheadRect(double maxAheadMeters) const;
 
-  /// \brief Where a point lies with respect to the route.
-  struct RoutePosition
-  {
-    /// Distance from the start of the route to the point of it that is closest to the given point.
-    double m_alongMeters = 0.0;
-    /// Distance from the given point to the route, measured across it.
-    double m_fromRouteMeters = 0.0;
-  };
-
-  /// \brief Projects |point| onto the route.
-  /// \return Nullopt if the route is invalid.
-  std::optional<RoutePosition> GetRoutePosition(m2::PointD const & point) const;
+  // Immutable geometry for the places along the route: an independent snapshot, with distances
+  // still measured from the route's start.
+  std::vector<route_places::RoutePoint> GetRoutePointsBetween(double fromMeters, double toMeters) const;
 
   uint32_t OpenRoutePointsTransaction();
   void ApplyRoutePointsTransaction(uint32_t transactionId);

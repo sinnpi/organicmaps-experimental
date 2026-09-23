@@ -25,6 +25,7 @@ set(SRC
   transliteration_test.cpp
   relation_track_tests.cpp
   routing_manager_tests.cpp
+  route_places_tests.cpp
   track_tests.cpp
   track_following_tests.cpp
 )

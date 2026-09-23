@@ -1,22 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<app.organicmaps.routing.NavElevationProfileLayout xmlns:android="http://schemas.android.com/apk/res/android"
   xmlns:tools="http://schemas.android.com/tools"
   android:id="@+id/nav_elevation_frame"
   android:layout_width="match_parent"
-  android:layout_height="@dimen/nav_elevation_profile_height"
+  android:layout_height="wrap_content"
   android:background="?cardBackground"
   android:visibility="gone"
   tools:showIn="@layout/layout_nav_bottom"
   tools:visibility="visible">
   <include
+    android:id="@+id/nav_profile_content"
     layout="@layout/route_elevation_profile"
     android:layout_width="match_parent"
-    android:layout_height="match_parent" />
+    android:layout_height="@dimen/nav_elevation_profile_height" />
+  <!-- The x-axis is 28dp from the bottom; marker centers are 14dp above the lane's bottom. -->
+  <FrameLayout
+    android:id="@+id/nav_route_places"
+    android:layout_width="match_parent"
+    android:layout_height="48dp"
+    android:layout_alignBottom="@id/nav_profile_content"
+    android:layout_marginBottom="@dimen/margin_half_double_plus" />
   <TextView
     android:id="@+id/nav_elevation_window"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:layout_alignParentTop="true"
+    android:layout_alignTop="@id/nav_profile_content"
+    android:clickable="true"
+    android:focusable="true"
     android:layout_alignParentStart="true"
     android:layout_marginStart="@dimen/margin_base_plus"
     android:layout_marginTop="@dimen/margin_quarter"
@@ -27,4 +37,4 @@
     android:paddingBottom="@dimen/margin_eighth"
     android:textSize="@dimen/text_size_body_5"
     tools:text="10 km" />
-</RelativeLayout>
+</app.organicmaps.routing.NavElevationProfileLayout>

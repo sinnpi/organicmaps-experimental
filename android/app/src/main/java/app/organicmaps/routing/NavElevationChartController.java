@@ -51,6 +51,8 @@ public class NavElevationChartController
   @NonNull
   private final RouteElevationChartController mProfile;
   @NonNull
+  private final RoutePlacesController mPlaces;
+  @NonNull
   private final TextView mWindowLabel;
   @Nullable
   private final Drawable mDefaultFrameBackground;
@@ -90,11 +92,20 @@ public class NavElevationChartController
     mDefaultWindowLabelTextColors = mWindowLabel.getTextColors();
 
     mProfile = new RouteElevationChartController(frame);
+    mPlaces = new RoutePlacesController(frame.findViewById(R.id.nav_route_places), this::cancelPendingWork);
+    mWindowLabel.setOnClickListener(v -> mPlaces.showOptions());
+    mChart.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> updatePlaces());
     // Navigation owns the viewport; gestures select a point or change the look-ahead window.
     mChart.setDragEnabled(false);
     mChart.setScaleXEnabled(false);
     mChart.setDoubleTapToZoomEnabled(false);
     mChart.setAlwaysSelectOnDrag(true);
+    // Leave room below the axis for distance labels so the place symbols centered on it cannot
+    // cover them. Keep the lane's bottom margin in nav_elevation_profile.xml in sync with this.
+    final int sideOffset = mContext.getResources().getDimensionPixelSize(R.dimen.margin_base);
+    mChart.setViewPortOffsets(sideOffset, 0, sideOffset,
+                              mContext.getResources().getDimensionPixelSize(R.dimen.nav_elevation_axis_bottom_offset));
+    mChart.getXAxis().setYOffset(12f);
     // Labels are placed at the edges and the middle of the visible window, so that shifting them by
     // the current position yields round "distance ahead" values.
     mChart.getXAxis().setLabelCount(3, true);
@@ -113,7 +124,7 @@ public class NavElevationChartController
 
     // A pinch is handled here rather than by the chart's own zoom, which would drag the viewport
     // around the focal point and pull the current position away from the left edge.
-    mChart.setOnWindowScaleListener(new ElevationProfileChart.OnWindowScaleListener() {
+    ((NavElevationProfileLayout) mFrame).setOnWindowScaleListener(new ElevationProfileChart.OnWindowScaleListener() {
       @Override
       public void onWindowScaleStart()
       {
@@ -144,6 +155,7 @@ public class NavElevationChartController
     {
       mRouteLengthMeters = 0;
       mPositionMeters = 0;
+      mPlaces.reset(false, 0);
       UiUtils.hide(mFrame);
       return;
     }
@@ -151,6 +163,7 @@ public class NavElevationChartController
     mRouteLengthMeters = (float) data.getDistance(data.getSize() - 1);
     // A rebuilt route has a new distance origin. Never retain progress from the old geometry.
     mPositionMeters = Math.max(0f, (float) Framework.nativeGetRouteDistanceFromBeginMeters());
+    mPlaces.reset(true, mPositionMeters);
     mAppliedYLower = Float.NaN;
     mAppliedYUpper = Float.NaN;
     mChart.setVisibleXRangeMinimum(MIN_WINDOW_METERS);
@@ -189,6 +202,7 @@ public class NavElevationChartController
   private void applyStyle()
   {
     mProfile.setLowPowerMode(mLowPowerMode);
+    mPlaces.setLowPowerMode(mLowPowerMode);
     if (mLowPowerMode)
     {
       mFrame.setBackgroundColor(Color.BLACK);
@@ -248,6 +262,13 @@ public class NavElevationChartController
     updateAxisOrigin();
     updatePositionLine();
     updateYRange();
+    updatePlaces();
+  }
+
+  private void updatePlaces()
+  {
+    mPlaces.update(mPositionMeters, mChart.getLowestVisibleX(), mChart.getHighestVisibleX(),
+                   mChart.getViewPortHandler().contentLeft(), mChart.getViewPortHandler().contentWidth());
   }
 
   /// Makes the x labels read as distances ahead of the left edge of the chart.
@@ -297,7 +318,8 @@ public class NavElevationChartController
 
   private void updateWindowLabel()
   {
-    mWindowLabel.setText(StringUtils.nativeFormatDistance(mWindowMeters).toString(mContext));
+    mWindowLabel.setText(mContext.getString(R.string.route_places_window,
+                                            StringUtils.nativeFormatDistance(mWindowMeters).toString(mContext)));
   }
 
   private void onPointScrubbed(float distanceMeters)

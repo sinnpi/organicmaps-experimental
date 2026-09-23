@@ -5,6 +5,7 @@
 #include "map/place_page_info.hpp"
 #include "map/raster_tile_provider.hpp"
 #include "map/relation_track.hpp"
+#include "map/route_places.hpp"
 #include "map/track_mark.hpp"
 #include "map/user_mark.hpp"
 
@@ -131,19 +132,6 @@ auto const kCrowdfundingEndTime = base::YYMMDDToSecondsSinceEpoch(260120);
 
 auto constexpr kLargeFontsScaleFactor = 1.6;
 size_t constexpr kMaxTrafficCacheSizeBytes = 64 /* Mb */ * 1024 * 1024;
-
-// How much of the route ahead a search covers while it is being followed, and how far off the route
-// a result may lie and still count as being on the way.
-double constexpr kSearchAlongRouteAheadMeters = 50000.0;
-double constexpr kSearchAlongRouteCorridorMeters = 500.0;
-
-// Where the way ahead has nothing in the corridor for a whole stretch of this length, results
-// further off it are taken instead, the closest ones first, but no further than the wide corridor
-// and no more than a couple of them: on an empty road a filling station a few kilometres away is
-// worth knowing about, on a busy one it only gets in the way.
-double constexpr kSearchAlongRouteStretchMeters = 10000.0;
-double constexpr kSearchAlongRouteWideCorridorMeters = 5000.0;
-size_t constexpr kMaxSearchResultsPerEmptyStretch = 2;
 
 // TODO!
 // To adjust GpsTrackFilter was added secret command "?gpstrackaccuracy:xxx;"
@@ -1196,13 +1184,14 @@ m2::RectD Framework::GetViewportSearchRect(m2::RectD const & viewport) const
   // Following a route, the screen shows the next few hundred metres, while a search made from the
   // navigation search wheel asks what is on the way: search the route ahead as well. The results
   // are narrowed back down to the ones near the route in FillSearchResultsMarks().
-  auto ahead = m_routingManager.GetRouteAheadRect(kSearchAlongRouteAheadMeters);
+  auto ahead = m_routingManager.GetRouteAheadRect(route_places::kMaxAheadMeters);
   if (!ahead)
     return viewport;
 
   // A straight road has a rect barely wider than itself, which would leave nothing to fall back on
-  // where the way ahead turns out to be empty.
-  double const margin = mercator::MetersToMercator(kSearchAlongRouteWideCorridorMeters);
+  // where the way ahead turns out to be empty. The margin also covers the little of the route
+  // behind that SelectResultsAlongRoute still counts as on the way.
+  double const margin = mercator::MetersToMercator(route_places::kAsideCorridorMeters);
   ahead->Inflate(margin, margin);
 
   auto rect = viewport;
@@ -1710,57 +1699,41 @@ void Framework::FillSearchResultsMarks(bool clear, search::Results const & resul
 std::vector<search::Result const *> Framework::SelectResultsAlongRoute(SearchResultsIterT beg,
                                                                        SearchResultsIterT end) const
 {
-  struct AsideResult
-  {
-    size_t m_stretch;
-    double m_fromRouteMeters;
-    search::Result const * m_result;
-  };
+  auto const fromMeters = m_routingManager.GetRouteDistanceFromBeginMeters();
+  if (!fromMeters)
+    return {};
 
-  std::vector<search::Result const *> onTheWay;
-  std::vector<AsideResult> aside;
-  std::set<size_t> coveredStretches;
+  // Clipped to the way still to be ridden, so that a place on a stretch already done is not offered
+  // again and a road the route uses twice is measured at the visit still to come.
+  auto const route = m_routingManager.GetRoutePointsBetween(*fromMeters - route_places::kMaxBehindMeters,
+                                                            *fromMeters + route_places::kMaxAheadMeters);
+  if (route.size() < 2)
+    return {};
 
+  std::vector<search::Result const *> candidates;
+  std::vector<route_places::Position> positions;
   for (auto it = beg; it != end; ++it)
   {
     if (!it->HasPoint())
       continue;
 
-    auto const position = m_routingManager.GetRoutePosition(it->GetFeatureCenter());
-    if (!position)
+    // A place the route passes more than once counts at the pass that needs the least of a detour.
+    auto const visits = route_places::Project(route, it->GetFeatureCenter(), route_places::kAsideCorridorMeters);
+    if (visits.empty())
       continue;
 
-    auto const stretch = static_cast<size_t>(position->m_alongMeters / kSearchAlongRouteStretchMeters);
-    if (position->m_fromRouteMeters <= kSearchAlongRouteCorridorMeters)
-    {
-      onTheWay.push_back(&*it);
-      coveredStretches.insert(stretch);
-    }
-    else if (position->m_fromRouteMeters <= kSearchAlongRouteWideCorridorMeters)
-    {
-      aside.push_back({stretch, position->m_fromRouteMeters, &*it});
-    }
+    candidates.push_back(&*it);
+    positions.push_back(*std::min_element(visits.begin(), visits.end(),
+                                          [](route_places::Position const & lhs, route_places::Position const & rhs)
+    { return lhs.m_offsetMeters < rhs.m_offsetMeters; }));
   }
 
-  // Closest to the way first, so that an empty stretch gets the least of a detour.
-  std::sort(aside.begin(), aside.end(),
-            [](AsideResult const & l, AsideResult const & r) { return l.m_fromRouteMeters < r.m_fromRouteMeters; });
-
-  // Results arrive in batches, each of which is filtered on its own, so a stretch may end up with a
-  // few more than the limit over a whole search. Not worth carrying state between the batches for.
-  std::map<size_t, size_t> takenPerStretch;
-  for (auto const & result : aside)
-  {
-    if (coveredStretches.count(result.m_stretch) != 0)
-      continue;
-
-    auto & taken = takenPerStretch[result.m_stretch];
-    if (taken == kMaxSearchResultsPerEmptyStretch)
-      continue;
-
-    ++taken;
-    onTheWay.push_back(result.m_result);
-  }
+  // Results arrive in batches, each of which is filtered on its own, so an empty stretch may end up
+  // with a few more than the rule allows over a whole search. Not worth carrying state between the
+  // batches for.
+  std::vector<search::Result const *> onTheWay;
+  for (size_t const i : route_places::SelectOnTheWay(positions))
+    onTheWay.push_back(candidates[i]);
 
   return onTheWay;
 }
