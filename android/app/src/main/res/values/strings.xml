@@ -963,6 +963,14 @@
     <string name="enable_oled_power_save">Ultra-low-power OLED navigation (experimental)</string>
     <!-- Description of the experimental OLED navigation setting. -->
     <string name="enable_oled_power_save_summary">During navigation, show the route, faint nearby paths, and essential guidance on a true-black screen. Intended for OLED displays.</string>
+    <!-- Settings toggle that blacks out the screen during navigation while the next turn is far away. -->
+    <string name="enable_nav_blackout">Black out the screen on long straights (experimental)</string>
+    <!-- Description of the experimental setting that blacks out the screen during navigation while the next turn is far away. -->
+    <string name="enable_nav_blackout_summary">During navigation, turn the screen black and stop drawing the map on long stretches without turns. The screen comes back 200 m before the next turn, or when you tap it.</string>
+    <!-- Countdown shown during navigation before the screen is blacked out to save power, counting 3, 2, 1 seconds. -->
+    <string name="nav_blackout_countdown">Screen off in %d…</string>
+    <!-- Hint under the countdown before the screen is blacked out during navigation. -->
+    <string name="nav_blackout_tap_to_keep_on">Tap to keep it on</string>
     <!-- Settings slider that changes how big the buttons on the map are. -->
     <string name="pref_map_buttons_scale_title">Map buttons size</string>
     <!-- Description of the setting that changes the size of the map buttons, shown in percent. -->
