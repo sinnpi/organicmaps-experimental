@@ -1001,4 +1001,29 @@
     <string name="choose_point_on_map_hint">Move and zoom the map to place the cross</string>
     <!-- Track recording notification button: stops the recording and saves the recorded track. -->
     <string name="track_recording_stop_and_save">Stop and Save</string>
+    <!-- Options and clustered results for places above the navigation elevation profile. -->
+    <string name="route_places_title">Mapped places ahead</string>
+    <!-- Only places explicitly mapped as drinking water, not all springs or fountains. -->
+    <string name="route_places_water">Drinking water</string>
+    <string name="route_places_groceries">Groceries</string>
+    <string name="route_places_cafe">Cafés</string>
+    <!-- Tappable elevation window label opening places-ahead options. %s is a formatted distance. -->
+    <string name="route_places_window">%s · Places</string>
+    <string name="route_places_loading">Looking for mapped places...</string>
+    <!-- No candidates in the visible profile window; this does not mean no real places exist. -->
+    <string name="route_places_empty">No mapped places found · Options</string>
+    <!-- All places-ahead categories have been switched off. Tap to configure them. -->
+    <string name="route_places_disabled">Places hidden · Options</string>
+    <!-- Accessibility label. %1$d is the number of clustered places; %2$s is the distance ahead of the nearest one. -->
+    <string name="route_places_cluster">%1$d mapped places, %2$s ahead</string>
+    <!-- Cluster list item and accessibility label: category, place name, formatted distance ahead. -->
+    <string name="route_places_item">%1$s · %2$s · %3$s ahead</string>
+    <!-- Distance to the projected point along the route, then straight-line offset from the route, NOT a navigable detour distance. -->
+    <string name="route_places_details">%1$s ahead\n%2$s from route (straight line, not detour distance)</string>
+    <!-- Displayed when inspecting any places-ahead candidate, including water. -->
+    <string name="route_places_unverified">Availability and access are unverified. Mapped places may be outdated or missing.</string>
+    <!-- Opens the existing place page, with its usual navigation and detour actions. -->
+    <string name="route_places_view">View place</string>
+    <!-- Explains coverage and reliability. %s is the maximum look-ahead distance in the user's units. -->
+    <string name="route_places_info">Shows candidates near the route, up to %s ahead, using downloaded maps. Results may be incomplete. An empty section does not mean there are no places there.\n\nWater icons mean mapped drinking water, not a guarantee that a tap works or is accessible. Untagged springs and fountains are not included.\n\nTap a marker to inspect it, then open the place for details or a detour.</string>
 </resources>
