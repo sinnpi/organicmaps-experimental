@@ -45317,6 +45317,26 @@ comment = Description of the experimental OLED navigation setting.
 tags = android-app
 en = During navigation, show the route, faint nearby paths, and essential guidance on a true-black screen. Intended for OLED displays.
 
+[enable_nav_blackout]
+comment = Settings toggle that blacks out the screen during navigation while the next turn is far away.
+tags = android-app
+en = Black out the screen on long straights (experimental)
+
+[enable_nav_blackout_summary]
+comment = Description of the experimental setting that blacks out the screen during navigation while the next turn is far away.
+tags = android-app
+en = During navigation, turn the screen black and stop drawing the map on long stretches without turns. The screen comes back 200 m before the next turn, or when you tap it.
+
+[nav_blackout_countdown]
+comment = Countdown shown during navigation before the screen is blacked out to save power, counting 3, 2, 1 seconds.
+tags = android-app
+en = Screen off in %d…
+
+[nav_blackout_tap_to_keep_on]
+comment = Hint under the countdown before the screen is blacked out during navigation.
+tags = android-app
+en = Tap to keep it on
+
 [pref_map_buttons_scale_title]
 comment = Settings slider that changes how big the buttons on the map are.
 tags = android-app
