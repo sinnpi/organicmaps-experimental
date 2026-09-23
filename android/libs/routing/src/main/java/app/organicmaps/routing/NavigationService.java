@@ -39,6 +39,7 @@ import app.organicmaps.sdk.util.Assert;
 import app.organicmaps.sdk.util.Config;
 import app.organicmaps.sdk.util.Graphics;
 import app.organicmaps.sdk.util.log.Logger;
+import java.util.Objects;
 
 public class NavigationService extends Service implements LocationListener
 {
@@ -66,6 +67,14 @@ public class NavigationService extends Service implements LocationListener
   private int mLastTurnResId;
   @Nullable
   private Bitmap mLastTurnBitmap;
+
+  // What the notification shows. Posting it again unchanged on every fix keeps System UI busy re-inflating it,
+  // and the phone awake, even with the screen off.
+  @Nullable
+  private String mPostedTitle;
+  @Nullable
+  private String mPostedText;
+  private int mPostedTurnResId;
 
   public static void setOrganicMaps(@NonNull OrganicMaps organicMaps)
   {
@@ -303,11 +312,18 @@ public class NavigationService extends Service implements LocationListener
         && ActivityCompat.checkSelfPermission(this, POST_NOTIFICATIONS) != PERMISSION_GRANTED)
       return;
 
-    final NotificationCompat.Builder notificationBuilder = getNotificationBuilder(this)
-                                                               .setContentTitle(routingInfo.distToTurn.toString(this))
-                                                               .setContentText(routingInfo.nextStreet);
-
+    final String title = routingInfo.distToTurn.toString(this);
+    final String text = routingInfo.nextStreet;
     final int turnResId = routingInfo.carDirection.getTurnRes(routingInfo.exitNum);
+    if (turnResId == mPostedTurnResId && title.equals(mPostedTitle) && Objects.equals(text, mPostedText))
+      return;
+    mPostedTitle = title;
+    mPostedText = text;
+    mPostedTurnResId = turnResId;
+
+    final NotificationCompat.Builder notificationBuilder =
+        getNotificationBuilder(this).setContentTitle(title).setContentText(text);
+
     if (turnResId != mLastTurnResId || mLastTurnBitmap == null)
     {
       final Drawable drawable = AppCompatResources.getDrawable(this, turnResId);

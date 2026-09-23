@@ -31,6 +31,9 @@ public class SensorHelper implements SensorEventListener
 
   @NonNull
   private final Set<SensorListener> mListeners = new LinkedHashSet<>();
+  /// Set between start() and stop(). The sensor itself only runs while someone listens: navigation keeps the
+  /// location, and so the compass, started with the screen off, where it would run for nobody.
+  private boolean mStarted;
 
   @Override
   public void onSensorChanged(SensorEvent event)
@@ -106,6 +109,7 @@ public class SensorHelper implements SensorEventListener
     mListeners.add(listener);
     if (!Double.isNaN(mSavedNorth))
       listener.onCompassUpdated(mSavedNorth);
+    updateRegistration();
   }
 
   /**
@@ -117,15 +121,33 @@ public class SensorHelper implements SensorEventListener
   {
     Logger.d(TAG, "listener: " + listener + " count was: " + mListeners.size());
     mListeners.remove(listener);
+    updateRegistration();
   }
 
   public void start()
   {
+    mStarted = true;
+    updateRegistration();
+  }
+
+  public void stop()
+  {
+    mStarted = false;
+    updateRegistration();
+  }
+
+  private void updateRegistration()
+  {
+    if (mStarted && !mListeners.isEmpty())
+      register();
+    else
+      unregister();
+  }
+
+  private void register()
+  {
     if (mRotationVectorSensor != null)
-    {
-      Logger.d(TAG, "Already started");
       return;
-    }
 
     mRotationVectorSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
     if (mRotationVectorSensor == null)
@@ -144,7 +166,7 @@ public class SensorHelper implements SensorEventListener
     mSensorManager.registerListener(this, mRotationVectorSensor, SensorManager.SENSOR_DELAY_UI);
   }
 
-  public void stop()
+  private void unregister()
   {
     if (mRotationVectorSensor == null)
       return;
@@ -152,5 +174,7 @@ public class SensorHelper implements SensorEventListener
 
     mSensorManager.unregisterListener(this);
     mRotationVectorSensor = null;
+    // Would be stale by the time a listener shows up again.
+    mSavedNorth = Double.NaN;
   }
 }
