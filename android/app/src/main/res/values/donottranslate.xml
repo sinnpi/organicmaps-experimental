@@ -35,6 +35,7 @@
   <string name="pref_track_follow" translatable="false">TrackFollowEnabled</string>
   <string name="pref_nav_elevation_profile" translatable="false">NavElevationProfileEnabled</string>
   <string name="pref_oled_power_save_feature" translatable="false">OledPowerSaveFeatureEnabled</string>
+  <string name="pref_nav_blackout" translatable="false">NavBlackoutEnabled</string>
   <string name="pref_map_buttons_scale" translatable="false">MapButtonsScale</string>
   <string name="pref_nav_search_options" translatable="false">NavSearchOptions</string>
   <string name="pref_large_fonts_size" translatable="false">LargeFontSize</string>

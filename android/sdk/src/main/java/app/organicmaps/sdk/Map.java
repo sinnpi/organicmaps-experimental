@@ -67,6 +67,7 @@ public final class Map
   private boolean mRequireResize;
   private boolean mSurfaceCreated;
   private boolean mSurfaceAttached;
+  private boolean mRenderingSuspended;
   private boolean mLaunchByDeepLink;
   @Nullable
   private MapRenderingListener mMapRenderingListener;
@@ -198,6 +199,9 @@ public final class Map
       return;
 
     nativeSurfaceChanged(surface, surfaceFrame.width(), surfaceFrame.height());
+    // Vulkan resizes by re-enabling rendering.
+    if (mRenderingSuspended)
+      nativeSetRenderingSuspended(true);
 
     mRequireResize = false;
     setupWidgets(context, surfaceFrame.width(), surfaceFrame.height());
@@ -212,6 +216,8 @@ public final class Map
     if (!mSurfaceCreated || !mSurfaceAttached)
       return;
 
+    // Rendering that is already disabled would stay parked with the old context instead of dropping it.
+    setRenderingSuspended(false);
     nativeDetachSurface(!activityIsChangingConfigurations);
     mSurfaceCreated = !nativeDestroySurfaceOnDetach();
     mSurfaceAttached = false;
@@ -258,6 +264,19 @@ public final class Map
     // Pause/Resume can be called without surface creation/destroy.
     if (mSurfaceAttached)
       nativeResumeSurfaceRendering();
+  }
+
+  /**
+   * Parks both render threads, so that nothing is drawn while the map is hidden anyway, but keeps the
+   * graphics context and the surface, so that the map comes back at once.
+   */
+  public void setRenderingSuspended(boolean suspended)
+  {
+    if (!mSurfaceAttached || mRenderingSuspended == suspended)
+      return;
+
+    mRenderingSuspended = suspended;
+    nativeSetRenderingSuspended(suspended);
   }
 
   public boolean isContextCreated()
@@ -383,6 +402,8 @@ public final class Map
   private static native void nativePauseSurfaceRendering();
 
   private static native void nativeResumeSurfaceRendering();
+
+  private static native void nativeSetRenderingSuspended(boolean suspended);
 
   // Widgets
   private static native void nativeApplyWidgets();

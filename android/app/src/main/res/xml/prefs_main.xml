@@ -208,12 +208,19 @@
       app:singleLineTitle="false"
       android:defaultValue="false"
       android:order="3" />
+    <SwitchPreferenceCompat
+      android:key="@string/pref_nav_blackout"
+      android:title="@string/enable_nav_blackout"
+      android:summary="@string/enable_nav_blackout_summary"
+      app:singleLineTitle="false"
+      android:defaultValue="false"
+      android:order="4" />
     <Preference
       android:key="@string/pref_nav_search_options"
       android:title="@string/pref_nav_search_options_title"
       app:singleLineTitle="false"
       android:persistent="false"
-      android:order="4" />
+      android:order="5" />
   </androidx.preference.PreferenceCategory>
   <androidx.preference.PreferenceCategory
     android:key="@string/pref_privacy"

@@ -387,6 +387,19 @@ void Framework::PauseSurfaceRendering()
   LOG(LINFO, ("Pause surface rendering."));
 }
 
+void Framework::SetRenderingSuspended(bool suspended)
+{
+  // Unlike DetachSurface, the context and the surface are kept, so that rendering resumes without a reload.
+  if (suspended)
+    m_work.SetRenderingDisabled(false /* destroySurface */);
+  else if (m_vulkanContextFactory)
+    m_work.SetRenderingEnabled();
+  else
+    m_work.SetRenderingEnabled(make_ref(m_oglContextFactory));
+
+  LOG(LINFO, ("Rendering suspended:", suspended));
+}
+
 void Framework::ResumeSurfaceRendering()
 {
   if (m_vulkanContextFactory)

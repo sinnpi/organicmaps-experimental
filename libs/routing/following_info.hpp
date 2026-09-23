@@ -44,6 +44,8 @@ public:
   /// @name Formatted distance to the next turn.
   //@{
   platform::Distance m_distToTurn;
+  /// Unlike m_distToTurn, not rounded for display.
+  double m_distToTurnMeters = 0.0;
   turns::CarDirection m_turn;
   /// Turn after m_turn. Returns NoTurn if there is no turns after.
   turns::CarDirection m_nextTurn;

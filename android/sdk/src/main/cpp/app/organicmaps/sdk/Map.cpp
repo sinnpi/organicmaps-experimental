@@ -88,6 +88,11 @@ JNIEXPORT void Java_app_organicmaps_sdk_Map_nativeResumeSurfaceRendering(JNIEnv 
   g_framework->ResumeSurfaceRendering();
 }
 
+JNIEXPORT void Java_app_organicmaps_sdk_Map_nativeSetRenderingSuspended(JNIEnv *, jclass, jboolean suspended)
+{
+  g_framework->SetRenderingSuspended(suspended);
+}
+
 JNIEXPORT void Java_app_organicmaps_sdk_Map_nativeUpdateMyPositionRoutingOffset(JNIEnv * env, jclass clazz, int offsetY)
 {
   g_framework->UpdateMyPositionRoutingOffset(offsetY);

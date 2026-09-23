@@ -99,6 +99,7 @@ import app.organicmaps.sdk.location.SensorListener;
 import app.organicmaps.sdk.location.TrackRecorder;
 import app.organicmaps.sdk.maplayer.isolines.IsolinesState;
 import app.organicmaps.sdk.routing.RoutingController;
+import app.organicmaps.sdk.routing.RoutingInfo;
 import app.organicmaps.sdk.routing.RoutingOptions;
 import app.organicmaps.sdk.search.SearchEngine;
 import app.organicmaps.sdk.settings.RoadType;
@@ -618,7 +619,8 @@ public class MwmActivity extends BaseMwmFragmentActivity
     initNavigationButtons();
 
     mNavigationController = new NavigationController(
-        this, v -> onSettingsOptionSelected(), v -> openVoiceInstructionsSettings(), this::updateBottomWidgetsOffset);
+        this, mMapController,
+        v -> onSettingsOptionSelected(), v -> openVoiceInstructionsSettings(), this::updateBottomWidgetsOffset);
     // TrafficManager.INSTANCE.attach(mNavigationController);
     initOnmapDownloader();
     initPositionChooser();
@@ -1024,7 +1026,7 @@ public class MwmActivity extends BaseMwmFragmentActivity
     if (mOnmapDownloader != null)
       mOnmapDownloader.onResume();
 
-    mNavigationController.refresh();
+    mNavigationController.onResume();
     if (RoutingController.get().isNavigating())
       mMapButtonsViewModel.setButtonsHidden(false);
     makeNavigationBarTransparentInLightMode();
@@ -1048,6 +1050,7 @@ public class MwmActivity extends BaseMwmFragmentActivity
     MwmApplication.from(this).getSensorHelper().removeListener(this);
     dismissLocationErrorDialog();
     dismissAlertDialog();
+    mNavigationController.onPause();
     super.onPause();
   }
 
@@ -1108,6 +1111,8 @@ public class MwmActivity extends BaseMwmFragmentActivity
   {
     if (mNavigationController != null)
     {
+      if (mNavigationController.onBlackoutTouchEvent(ev))
+        return true;
       // Bracketed on the first touch down and the last touch up rather than counted per event: a
       // drag along the elevation profile is one long gesture, and must keep the display at its full
       // refresh rate for all of it.
@@ -1497,6 +1502,7 @@ public class MwmActivity extends BaseMwmFragmentActivity
   public void onBuiltRoute()
   {
     mNavigationController.refreshElevationData();
+    mNavigationController.wakeFromBlackout();
   }
 
   @Override
@@ -1673,7 +1679,9 @@ public class MwmActivity extends BaseMwmFragmentActivity
     if (!routing.isNavigating())
       return;
 
-    mNavigationController.update(Framework.nativeGetRouteFollowingInfo());
+    final RoutingInfo info = Framework.nativeGetRouteFollowingInfo();
+    mNavigationController.update(info);
+    mNavigationController.onFix(info);
   }
 
   @Override

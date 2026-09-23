@@ -38,6 +38,8 @@
     the application must request the Manifest.permission.WAKE_LOCK permission.
   //-->
   <uses-permission android:name="android.permission.WAKE_LOCK"/>
+  <!-- Switches the screen back on before a turn, after the experimental navigation blackout let it go off. -->
+  <uses-permission android:name="android.permission.TURN_SCREEN_ON"/>
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>

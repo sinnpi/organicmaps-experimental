@@ -87,6 +87,7 @@ public:
   bool AttachSurface(JNIEnv * env, jobject jSurface);
   void PauseSurfaceRendering();
   void ResumeSurfaceRendering();
+  void SetRenderingSuspended(bool suspended);
 
   void SetMapStyle(MapStyle mapStyle);
   void MarkMapStyle(MapStyle mapStyle);

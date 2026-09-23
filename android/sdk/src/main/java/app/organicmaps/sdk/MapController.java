@@ -59,6 +59,11 @@ public class MapController implements DefaultLifecycleObserver
     mMap.updateMyPositionRoutingOffset(offsetY);
   }
 
+  public void setRenderingSuspended(boolean suspended)
+  {
+    mMap.setRenderingSuspended(suspended);
+  }
+
   public void setOnDestroyListener(@NonNull Runnable task)
   {
     mOnSurfaceDestroyedListener = task;

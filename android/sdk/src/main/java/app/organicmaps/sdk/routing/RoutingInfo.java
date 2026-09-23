@@ -15,6 +15,8 @@ public final class RoutingInfo
   public final Distance distToTarget;
   // Next turn.
   public final Distance distToTurn;
+  // Not rounded for display.
+  public final double distToTurnMeters;
 
   public final int totalTimeInSeconds;
   // Current street name.
@@ -45,8 +47,8 @@ public final class RoutingInfo
   private final boolean speedCamLimitExceeded;
   private final boolean shouldPlayWarningSignal;
 
-  private RoutingInfo(Distance distToTarget, Distance distToTurn, String currentStreet, String nextStreet,
-                      @Nullable RoadShieldInfo nextStreetRoadShields, String nextNextStreet,
+  private RoutingInfo(Distance distToTarget, Distance distToTurn, double distToTurnMeters, String currentStreet,
+                      String nextStreet, @Nullable RoadShieldInfo nextStreetRoadShields, String nextNextStreet,
                       @Nullable RoadShieldInfo nextNextStreetRoadShields, double completionPercent,
                       @NonNull CarDirection carTurnDirection, @NonNull CarDirection carNextTurnDirection,
                       @NonNull PedestrianDirection pedestrianDirection, int exitNum, int totalTime,
@@ -55,6 +57,7 @@ public final class RoutingInfo
   {
     this.distToTarget = distToTarget;
     this.distToTurn = distToTurn;
+    this.distToTurnMeters = distToTurnMeters;
     this.currentStreet = currentStreet;
     this.nextStreet = nextStreet;
     this.nextStreetRoadShields = nextStreetRoadShields;

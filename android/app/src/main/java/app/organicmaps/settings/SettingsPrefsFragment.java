@@ -67,6 +67,7 @@ public class SettingsPrefsFragment extends BaseXmlSettingsFragment implements La
     initTrackFollowPrefsCallbacks();
     initNavElevationProfilePrefsCallbacks();
     initOledPowerSavePrefsCallbacks();
+    initNavBlackoutPrefsCallbacks();
     initNavSearchOptionsPrefsCallbacks();
     initLoggingEnabledPrefsCallbacks();
     initEmulationBadStorage();
@@ -279,6 +280,16 @@ public class SettingsPrefsFragment extends BaseXmlSettingsFragment implements La
     pref.setChecked(Config.isOledPowerSaveFeatureEnabled());
     pref.setOnPreferenceChangeListener((preference, newValue) -> {
       Config.setOledPowerSaveFeatureEnabled((boolean) newValue);
+      return true;
+    });
+  }
+
+  private void initNavBlackoutPrefsCallbacks()
+  {
+    final TwoStatePreference pref = getPreference(getString(R.string.pref_nav_blackout));
+    pref.setChecked(Config.isNavBlackoutEnabled());
+    pref.setOnPreferenceChangeListener((preference, newValue) -> {
+      Config.setNavBlackoutEnabled((boolean) newValue);
       return true;
     });
   }

@@ -49,6 +49,7 @@ public final class Config
   private static final String KEY_PREF_NAV_ELEVATION_PROFILE = "NavElevationProfileEnabled";
   private static final String KEY_PREF_OLED_POWER_SAVE = "OledPowerSaveEnabled";
   private static final String KEY_PREF_OLED_POWER_SAVE_FEATURE = "OledPowerSaveFeatureEnabled";
+  private static final String KEY_PREF_NAV_BLACKOUT = "NavBlackoutEnabled";
   private static final String KEY_PREF_MAP_BUTTONS_SCALE = "MapButtonsScale";
   private static final String KEY_PREF_NAV_SEARCH_OPTIONS = "NavSearchOptions";
 
@@ -238,6 +239,16 @@ public final class Config
   public static void setOledPowerSaveEnabled(boolean enabled)
   {
     setBool(KEY_PREF_OLED_POWER_SAVE, enabled);
+  }
+
+  public static boolean isNavBlackoutEnabled()
+  {
+    return getBool(KEY_PREF_NAV_BLACKOUT);
+  }
+
+  public static void setNavBlackoutEnabled(boolean enabled)
+  {
+    setBool(KEY_PREF_NAV_BLACKOUT, enabled);
   }
 
   /** Size of the buttons on the map, in percent of the size they are designed with. */

@@ -417,6 +417,7 @@ void RoutingSession::GetRouteFollowingInfo(FollowingInfo & info) const
   turns::TurnItem turn;
   m_route->GetNearestTurn(distanceToTurnMeters, turn);
   info.m_distToTurn = platform::Distance::CreateFormatted(distanceToTurnMeters);
+  info.m_distToTurnMeters = distanceToTurnMeters;
   info.m_turn = turn.m_turn;
 
   SpeedInUnits const speedLimit = m_route->GetCurrentSpeedLimit();

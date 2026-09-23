@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent"
+  android:visibility="gone">
+  <LinearLayout
+    android:id="@+id/countdown"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_gravity="center"
+    android:background="@drawable/bg_nav_blackout_countdown"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:paddingHorizontal="@dimen/margin_double"
+    android:paddingVertical="@dimen/margin_base">
+    <TextView
+      android:id="@+id/countdown_text"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:textAppearance="?textAppearanceHeadline5"
+      android:textColor="@android:color/white" />
+    <TextView
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:text="@string/nav_blackout_tap_to_keep_on"
+      android:textAppearance="?textAppearanceBody1"
+      android:textColor="@android:color/white" />
+  </LinearLayout>
+</FrameLayout>

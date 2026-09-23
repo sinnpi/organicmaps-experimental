@@ -8,6 +8,7 @@ import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.text.TextUtils;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
@@ -23,6 +24,7 @@ import app.organicmaps.MwmApplication;
 import app.organicmaps.R;
 import app.organicmaps.maplayer.MapButtonsViewModel;
 import app.organicmaps.sdk.Framework;
+import app.organicmaps.sdk.MapController;
 import app.organicmaps.sdk.Router;
 import app.organicmaps.sdk.maplayer.traffic.TrafficManager;
 import app.organicmaps.sdk.routing.RoutingController;
@@ -72,6 +74,8 @@ public class NavigationController implements TrafficManager.TrafficCallback, Nav
   private final NavElevationChartController mElevationChart;
   @NonNull
   private final NavigationRefreshRate mRefreshRate;
+  @NonNull
+  private final NavBlackout mBlackout;
 
   @Nullable
   private final Drawable mDefaultStreetFrameBackground;
@@ -97,10 +101,12 @@ public class NavigationController implements TrafficManager.TrafficCallback, Nav
   private boolean mVisibleViewportNarrowed;
   private int mVisibleViewportBottomInset;
   private boolean mLowPowerMode;
+  private boolean mResumed;
   View.OnClickListener mOnSettingsClickListener;
   View.OnClickListener mOnVoiceSettingsClickListener;
 
-  public NavigationController(AppCompatActivity activity, View.OnClickListener onSettingsClickListener,
+  public NavigationController(AppCompatActivity activity, @NonNull MapController mapController,
+                              View.OnClickListener onSettingsClickListener,
                               View.OnClickListener onVoiceSettingsClickListener,
                               NavMenu.OnMenuSizeChangedListener onMenuSizeChangedListener)
   {
@@ -134,6 +140,7 @@ public class NavigationController implements TrafficManager.TrafficCallback, Nav
 
     mElevationChart = new NavElevationChartController(mFrame.findViewById(R.id.nav_elevation_frame));
     mRefreshRate = new NavigationRefreshRate(activity.getWindow());
+    mBlackout = new NavBlackout(activity, mapController, mRefreshRate);
 
     // Blank rectangle below the navbar that hides menu content behind it.
     mNavigationBarBackground = mFrame.findViewById(R.id.nav_bottom_sheet_nav_bar);
@@ -268,6 +275,41 @@ public class NavigationController implements TrafficManager.TrafficCallback, Nav
     setLowPowerMode(OledPowerSaveMode.shouldEnable(Config.isOledPowerSaveEnabled(), carDisplayUsed));
     // The phone panel is not the one being looked at when the car display drives navigation.
     mRefreshRate.update(navigating && !carDisplayUsed, mLowPowerMode);
+    mBlackout.setEnabled(Config.isNavBlackoutEnabled() && navigating && !carDisplayUsed
+                         && (mResumed || mBlackout.isScreenOff()));
+  }
+
+  public void onResume()
+  {
+    mResumed = true;
+    mBlackout.onResume();
+    refresh();
+  }
+
+  public void onPause()
+  {
+    mResumed = false;
+    // A blackout that has let the screen go off carries on, to switch the screen back on before the turn.
+    mBlackout.onPause();
+    refreshLowPowerMode();
+  }
+
+  /// Feeds the blackout from a fresh fix. Unlike {@link #update}, never called with a cached route info.
+  public void onFix(@Nullable RoutingInfo info)
+  {
+    mBlackout.onFix(info);
+  }
+
+  /// @return whether the event only woke the screen up, and must not reach anything else
+  public boolean onBlackoutTouchEvent(@NonNull MotionEvent ev)
+  {
+    return mBlackout.onTouchEvent(ev);
+  }
+
+  /// For changes that deserve a look at the screen even far from a turn, like a new route.
+  public void wakeFromBlackout()
+  {
+    mBlackout.wake("new route");
   }
 
   /**
