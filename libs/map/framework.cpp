@@ -2235,8 +2235,14 @@ void Framework::SetLowPowerNavigationMode(bool enabled)
     return;
 
   m_lowPowerNavigationMode = enabled;
-  if (m_drapeEngine != nullptr)
-    m_drapeEngine->SetLowPowerNavigationMode(enabled);
+  if (m_drapeEngine == nullptr)
+    return;
+
+  m_drapeEngine->SetLowPowerNavigationMode(enabled);
+
+  bool allow3d, allow3dBuildings;
+  Load3dMode(allow3d, allow3dBuildings);
+  Allow3dMode(allow3d, allow3dBuildings);
 }
 
 void Framework::SetupMeasurementSystem()
@@ -3108,7 +3114,8 @@ void Framework::Allow3dMode(bool allow3d, bool allow3dBuildings)
   if (!m_powerManager.IsFacilityEnabled(power_management::Facility::PerspectiveView))
     allow3d = false;
 
-  if (!m_powerManager.IsFacilityEnabled(power_management::Facility::Buildings3d))
+  // The low-power renderer never draws buildings, so don't build their 3D geometry either.
+  if (!m_powerManager.IsFacilityEnabled(power_management::Facility::Buildings3d) || m_lowPowerNavigationMode)
     allow3dBuildings = false;
 
   m_drapeEngine->Allow3dMode(allow3d, allow3dBuildings);
