@@ -263,6 +263,8 @@ public:
 
   void CheckLocationForRouting(location::GpsInfo const & info);
   void CallRouteBuilded(routing::RouterResultCode code, storage::CountriesSet const & absentCountries);
+  // Refit a built route after the planning sheet changes the visible map area.
+  void ShowRouteOverview();
   void OnBuildRouteReady(routing::RoutesResult const & result, routing::RouterResultCode code);
   void OnRebuildRouteReady(routing::RoutesResult const & result, routing::RouterResultCode code);
   void OnNeedMoreMaps(uint64_t routeId, storage::CountriesSet const & absentCountries);

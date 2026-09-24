@@ -455,6 +455,21 @@ void RoutingManager::OnBuildRouteReady(RoutesResult const & result, RouterResult
   CallRouteBuilded(hasWarnings ? RouterResultCode::HasWarnings : code, storage::CountriesSet());
 }
 
+void RoutingManager::ShowRouteOverview()
+{
+  if (!m_routingSession.IsBuilt() || m_currentRouterType == routing::RouterType::Ruler)
+    return;
+
+  auto const * route = m_routingSession.GetRoute();
+  if (!route || !route->IsValid() || route->GetSubrouteCount() >= 2)
+    return;
+
+  m2::RectD routeRect = route->GetLimitRect();
+  routeRect.Scale(kRouteScaleMultiplier);
+  m_drapeEngine.SafeCall(&df::DrapeEngine::SetModelViewRect, routeRect, true /* applyRotation */, -1 /* zoom */,
+                         true /* isAnim */, true /* useVisibleViewport */);
+}
+
 void RoutingManager::OnRebuildRouteReady(RoutesResult const & result, RouterResultCode code)
 {
   HidePreviewSegments();

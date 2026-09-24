@@ -2,6 +2,7 @@ package app.organicmaps.routing;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -20,6 +21,7 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.MediatorLiveData;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
+import app.organicmaps.MwmApplication;
 import app.organicmaps.R;
 import app.organicmaps.maplayer.MapButtonsController;
 import app.organicmaps.sdk.Framework;
@@ -61,6 +63,9 @@ public class RoutingPlanFragment extends Fragment implements View.OnLayoutChange
   private int mPeekHeightMargins;
   private View mButtonsLayout;
   private int mTopInset;
+  private boolean mPlanningViewportApplied;
+  private boolean mOverviewPending;
+  private boolean mBuiltProgressHandled;
 
   private final ActivityResultLauncher<Intent> startDrivingOptionsForResult =
       registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), activityResult -> {
@@ -203,6 +208,11 @@ public class RoutingPlanFragment extends Fragment implements View.OnLayoutChange
           mViewModel.setBottomSheetState(newState);
         if (newState == BottomSheetBehavior.STATE_HIDDEN)
           UiUtils.hide(mButtonsLayout);
+        if (newState == BottomSheetBehavior.STATE_COLLAPSED || newState == BottomSheetBehavior.STATE_EXPANDED)
+        {
+          updatePlanningViewport();
+          maybeShowRouteOverview();
+        }
       }
 
       @Override
@@ -216,6 +226,7 @@ public class RoutingPlanFragment extends Fragment implements View.OnLayoutChange
   @Override
   public void onDestroyView()
   {
+    restorePlanningViewport();
     super.onDestroyView();
     mRoutingContainer.removeOnLayoutChangeListener(this);
   }
@@ -259,6 +270,8 @@ public class RoutingPlanFragment extends Fragment implements View.OnLayoutChange
         final int state = mViewModel.getBottomSheetState();
         mSheetBehavior.setState(state == BottomSheetBehavior.STATE_HIDDEN ? BottomSheetBehavior.STATE_COLLAPSED
                                                                           : state);
+        updatePlanningViewport();
+        maybeShowRouteOverview();
       });
     }
     else
@@ -269,6 +282,7 @@ public class RoutingPlanFragment extends Fragment implements View.OnLayoutChange
       // STATE_HIDDEN callback. One that is on screen does, after sliding the anchored buttons out with it.
       if (!mFrame.isShown() || mSheetBehavior.getState() == BottomSheetBehavior.STATE_HIDDEN)
         UiUtils.hide(mButtonsLayout);
+      restorePlanningViewport();
     }
   }
 
@@ -293,6 +307,76 @@ public class RoutingPlanFragment extends Fragment implements View.OnLayoutChange
     updateSheetHeights();
     final int newDistanceTop = mFrame.getTop();
     mViewModel.setRoutingBottomDistanceToTop(newDistanceTop);
+    updatePlanningViewport();
+    maybeShowRouteOverview();
+  }
+
+  /** Keep route framing inside the map actually visible above (or beside) the planning sheet. */
+  private boolean updatePlanningViewport()
+  {
+    if (!Boolean.TRUE.equals(mSheetVisible.getValue()) || !mFrame.isShown()
+        || MwmApplication.from(requireContext()).getDisplayManager().isCarDisplayUsed())
+      return false;
+
+    final int width = mRoutingRoot.getWidth();
+    final int height = mRoutingRoot.getHeight();
+    if (width == 0 || height == 0)
+      return false;
+
+    final boolean portrait = getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT;
+    final int left;
+    final int bottom;
+    if (portrait)
+    {
+      final int[] sheetPosition = new int[2];
+      final int[] rootPosition = new int[2];
+      mFrame.getLocationInWindow(sheetPosition);
+      mRoutingRoot.getLocationInWindow(rootPosition);
+      left = 0;
+      bottom = sheetPosition[1] - rootPosition[1];
+      if (bottom <= 0 || bottom > height)
+        return false;
+    }
+    else
+    {
+      left = mRoutingBottomContainer.getWidth();
+      bottom = height;
+      if (left <= 0 || left >= width)
+        return false;
+    }
+
+    Framework.nativeSetVisibleRect(left, 0, width, bottom);
+    mPlanningViewportApplied = true;
+    return true;
+  }
+
+  private void maybeShowRouteOverview()
+  {
+    if (!mOverviewPending || !RoutingController.get().isBuilt())
+      return;
+    final int state = mSheetBehavior.getState();
+    if (state != BottomSheetBehavior.STATE_COLLAPSED && state != BottomSheetBehavior.STATE_EXPANDED)
+      return;
+    if (updatePlanningViewport())
+    {
+      mOverviewPending = false;
+      Framework.nativeShowRouteOverview();
+    }
+  }
+
+  private void restorePlanningViewport()
+  {
+    if (!mPlanningViewportApplied)
+      return;
+    mPlanningViewportApplied = false;
+    // Another panel (or navigation) owns the viewport when it replaces the route planner.
+    if (RoutingController.get().isNavigating()
+        || Boolean.TRUE.equals(mViewModel.getIsPlacePageActive().getValue())
+        || Boolean.TRUE.equals(mViewModel.getIsSearchActive().getValue())
+        || Boolean.TRUE.equals(mViewModel.getIsPointChooserActive().getValue()))
+      return;
+    if (mRoutingRoot.getWidth() > 0 && mRoutingRoot.getHeight() > 0)
+      Framework.nativeSetVisibleRect(0, 0, mRoutingRoot.getWidth(), mRoutingRoot.getHeight());
   }
 
   private void updateSheetHeights()
@@ -402,12 +486,27 @@ public class RoutingPlanFragment extends Fragment implements View.OnLayoutChange
     updateRouterButtons(controller.isTrackFollowMode());
     if (controller.isBuilding())
     {
+      mOverviewPending = true;
+      mBuiltProgressHandled = false;
       mRoutingBottomMenuController.setStartState(RoutingBottomMenuController.StartState.BUILDING);
       mRoutingBottomMenuController.setBuildProgress(progress);
     }
     else if (!controller.isBuilt())
+    {
+      mOverviewPending = false;
+      mBuiltProgressHandled = false;
       // ERROR / NONE / cancelled: clear the progress fill that BUILDING left behind.
       mRoutingBottomMenuController.setStartState(RoutingBottomMenuController.StartState.DISABLED);
+    }
+    else
+    {
+      if (!mBuiltProgressHandled)
+      {
+        mBuiltProgressHandled = true;
+        mOverviewPending = true;
+      }
+      maybeShowRouteOverview();
+    }
   }
 
   public void onBuildStarted()

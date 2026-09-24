@@ -267,6 +267,8 @@ public class Framework
   /// Moves the map so that the stretch of the current route between the two distances is visible.
   public static native void nativeShowRouteStretch(double fromMeters, double toMeters, boolean animated);
 
+  public static native void nativeShowRouteOverview();
+
   // When an end user is going to a turn he gets sound turn instructions.
   // If C++ part wants the client to pronounce an instruction nativeGenerateTurnNotifications returns
   // an array of one of more strings. C++ part assumes that all these strings shall be pronounced by the client's TTS.

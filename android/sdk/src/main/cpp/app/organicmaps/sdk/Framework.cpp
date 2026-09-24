@@ -1460,6 +1460,11 @@ JNIEXPORT void Java_app_organicmaps_sdk_Framework_nativeShowRouteStretch(JNIEnv 
   frm()->ShowRouteStretch(fromMeters, toMeters, animated);
 }
 
+JNIEXPORT void Java_app_organicmaps_sdk_Framework_nativeShowRouteOverview(JNIEnv *, jclass)
+{
+  frm()->GetRoutingManager().ShowRouteOverview();
+}
+
 JNIEXPORT void Java_app_organicmaps_sdk_Framework_nativeShowCountry(JNIEnv * env, jclass, jstring countryId,
                                                                     jboolean zoomToDownloadButton)
 {
