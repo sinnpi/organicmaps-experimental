@@ -180,6 +180,8 @@ protected:
   std::unique_ptr<BookmarkManager> m_bmManager;
 
   SearchMarks m_searchMarks;
+  // Whether the map was already zoomed out for the places the current search found on the way.
+  bool m_zoomedOutToPlacesAhead = false;
 
   df::DrapeApi m_drapeApi;
 
@@ -318,6 +320,7 @@ public:
   // PositionProvider, SearchApi::Delegate and TipsApi::Delegate override.
   std::optional<m2::PointD> GetCurrentPosition() const override;
   m2::RectD GetViewportSearchRect(m2::RectD const & viewport) const override;
+  size_t GetMaxViewportSearchResults() const override;
   bool ParseSearchQueryCommand(search::SearchParams const & params) override;
   m2::PointD GetMinDistanceBetweenResults() const override;
 
@@ -531,6 +534,10 @@ public:
 
   /// \brief Picks the results that are on the way while a route is being followed.
   std::vector<search::Result const *> SelectResultsAlongRoute(SearchResultsIterT beg, SearchResultsIterT end) const;
+
+  /// \brief Zooms out far enough for the nearest of |places|, which a search made while following a
+  /// route puts beyond the few hundred metres the screen shows. Once per search, and never zooms in.
+  void ZoomOutToPlacesAhead(std::vector<search::Result const *> const & places);
 
   /// Calculate distance and direction to POI for the given position.
   /// @param[in]  point             POI's position;

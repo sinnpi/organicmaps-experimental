@@ -209,7 +209,11 @@ bool SearchAPI::SearchInViewport(ViewportSearchParams params)
   p.m_inputLocale = std::move(params.m_inputLocale);
   p.m_position = m_delegate.GetCurrentPosition();
   SetViewportSearchRectIfPossible(p);  // Search request will be delayed if viewport is not available.
-  p.m_maxNumResults = SearchParams::kDefaultNumResultsInViewport;
+  p.m_maxNumResults = m_delegate.GetMaxViewportSearchResults();
+  // Every batch is emitted together with all the results found before it, so the work is quadratic
+  // in the number of batches. Keep that number where a screenful of results puts it.
+  p.m_batchSize = std::max<size_t>(
+      1, p.m_maxNumResults / (SearchParams::kDefaultNumResultsInViewport / SearchParams::kDefaultBatchSizeEverywhere));
   p.m_mode = Mode::Viewport;
   p.m_suggestsEnabled = false;
   p.m_needAddress = false;

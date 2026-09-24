@@ -133,6 +133,17 @@ auto const kCrowdfundingEndTime = base::YYMMDDToSecondsSinceEpoch(260120);
 auto constexpr kLargeFontsScaleFactor = 1.6;
 size_t constexpr kMaxTrafficCacheSizeBytes = 64 /* Mb */ * 1024 * 1024;
 
+// A search covering the whole way ahead sees an area a hundred times a screenful, of which only the
+// narrow corridor along the route is kept. A screen-sized budget of results would be spent on
+// everything else in that area long before the places actually on the way were found.
+size_t constexpr kMaxSearchResultsAlongRoute = 1000;
+
+// Zooming out for a place this far ahead would leave a map no longer usable for riding, so past it
+// the nearest place is simply not shown yet.
+double constexpr kMaxZoomOutToPlaceAheadMeters = 10000.0;
+// Keeps the place clear of the screen edge.
+double constexpr kZoomOutToPlaceAheadPadding = 1.2;
+
 // TODO!
 // To adjust GpsTrackFilter was added secret command "?gpstrackaccuracy:xxx;"
 // where xxx is a new value for horizontal accuracy.
@@ -1738,11 +1749,44 @@ std::vector<search::Result const *> Framework::SelectResultsAlongRoute(SearchRes
   return onTheWay;
 }
 
+void Framework::ZoomOutToPlacesAhead(std::vector<search::Result const *> const & places)
+{
+  if (m_zoomedOutToPlacesAhead || places.empty() || !m_drapeEngine)
+    return;
+
+  auto const myPosition = GetCurrentPosition();
+  if (!myPosition)
+    return;
+
+  double nearestMeters = std::numeric_limits<double>::max();
+  for (auto const * place : places)
+    nearestMeters = std::min(nearestMeters, mercator::DistanceOnEarth(*myPosition, place->GetFeatureCenter()));
+
+  if (nearestMeters > kMaxZoomOutToPlaceAheadMeters)
+    return;
+
+  // What the part of the screen the UI leaves free shows from the centre outwards. Perspective mode
+  // reaches further than that, so at worst this zooms out a little more than it had to.
+  double const halfHeight = m_visibleViewport.SizeY() / 2.0 * m_currentModelView.GetScale();
+  double const visibleMeters = mercator::DistanceOnEarth(*myPosition, *myPosition + m2::PointD(0.0, halfHeight));
+  double const neededMeters = nearestMeters * kZoomOutToPlaceAheadPadding;
+  if (visibleMeters <= 0.0 || neededMeters <= visibleMeters)
+    return;
+
+  m_zoomedOutToPlacesAhead = true;
+  Scale(visibleMeters / neededMeters, true /* isAnim */);
+}
+
 void Framework::FillSearchResultsMarks(SearchResultsIterT beg, SearchResultsIterT end, bool clear)
 {
   auto editSession = GetBookmarkManager().GetEditSession();
   if (clear)
+  {
     editSession.ClearGroup(UserMark::Type::SEARCH);
+    // A fresh search, so the way ahead is worth another look even if the map was zoomed out for the
+    // previous one and then zoomed back in since.
+    m_zoomedOutToPlacesAhead = false;
+  }
   editSession.SetIsVisible(UserMark::Type::SEARCH, true);
 
   auto const addMark = [this, &editSession](search::Result const & r)
@@ -1764,8 +1808,10 @@ void Framework::FillSearchResultsMarks(SearchResultsIterT beg, SearchResultsIter
   // rect with it.
   if (m_routingManager.IsRoutingFollowing())
   {
-    for (auto const * r : SelectResultsAlongRoute(beg, end))
+    auto const onTheWay = SelectResultsAlongRoute(beg, end);
+    for (auto const * r : onTheWay)
       addMark(*r);
+    ZoomOutToPlacesAhead(onTheWay);
     return;
   }
 
@@ -3975,6 +4021,12 @@ bool Framework::ParseSearchQueryCommand(search::SearchParams const & params)
 m2::PointD Framework::GetMinDistanceBetweenResults() const
 {
   return m_searchMarks.GetMaxDimension(m_currentModelView);
+}
+
+size_t Framework::GetMaxViewportSearchResults() const
+{
+  return m_routingManager.IsRoutingFollowing() ? kMaxSearchResultsAlongRoute
+                                               : search::SearchParams::kDefaultNumResultsInViewport;
 }
 
 std::vector<std::string> Framework::GetRegionsCountryIdByRect(m2::RectD const & rect, bool rough) const

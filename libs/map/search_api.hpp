@@ -58,6 +58,10 @@ public:
     /// The rect a search in the viewport should cover, given the current screen |viewport|.
     virtual m2::RectD GetViewportSearchRect(m2::RectD const & viewport) const { return viewport; }
 
+    /// How many results that rect is worth: a rect covering more than a screen needs more of them,
+    /// since it is the caller that narrows them back down to what it asked for.
+    virtual size_t GetMaxViewportSearchResults() const { return search::SearchParams::kDefaultNumResultsInViewport; }
+
     virtual bool ParseSearchQueryCommand(search::SearchParams const & /* params */) { return false; }
 
     virtual m2::PointD GetMinDistanceBetweenResults() const { return {0, 0}; }
