@@ -71,11 +71,11 @@ public class SearchWheel implements View.OnClickListener
                                  R.id.search_option_5};
 
   /**
-   * A wheel action: a category query, free-text search, or a hidden slot.
+   * A wheel action: a category query or a hidden slot. Free-text search is left out, as a second
+   * tap on the search button already opens it.
    */
   public enum SearchOption
   {
-    SEARCH("search", R.string.search, R.drawable.ic_search),
     FUEL("fuel", R.string.category_fuel, R.drawable.ic_nav_search_fuel),
     PARKING("parking", R.string.category_parking, R.drawable.ic_nav_search_parking),
     EAT("eat", R.string.category_eat, R.drawable.ic_nav_search_eat),
@@ -475,11 +475,6 @@ public class SearchWheel implements View.OnClickListener
 
   private void startSearch(SearchOption searchOption)
   {
-    if (searchOption == SearchOption.SEARCH)
-    {
-      showSearchInParent();
-      return;
-    }
     mMapButtonsViewModel.setSearchOption(searchOption);
     final String query = mFrame.getContext().getString(searchOption.mQueryId);
     // Category request from navigation search wheel.

@@ -49,21 +49,17 @@ public class SearchOptionSelectionTest
   }
 
   @Test
-  public void freeTextSearchCanOccupyAnySlot()
+  public void hidesSlotsThatHeldTheRemovedFreeTextSearch()
   {
-    for (int slot = 0; slot < SearchOption.MAX_SELECTED; ++slot)
-    {
-      final SearchOption[] options = DEFAULTS.toArray(new SearchOption[0]);
-      options[slot] = SearchOption.SEARCH;
-      assertEquals(Arrays.asList(options), SearchOption.parse(SearchOption.format(Arrays.asList(options))));
-    }
+    assertEquals(Arrays.asList(SearchOption.FUEL, SearchOption.NONE, SearchOption.WATER),
+                 SearchOption.parse("fuel,search,water"));
   }
 
   @Test
   public void roundTripsHiddenAndRepeatedActionsWithoutMovingThem()
   {
-    final List<SearchOption> selection = Arrays.asList(SearchOption.SEARCH, SearchOption.NONE, SearchOption.WATER,
-                                                       SearchOption.SEARCH, SearchOption.TOILET);
+    final List<SearchOption> selection =
+        Arrays.asList(SearchOption.FUEL, SearchOption.NONE, SearchOption.WATER, SearchOption.FUEL, SearchOption.TOILET);
     assertEquals(selection, SearchOption.parse(SearchOption.format(selection)));
   }
 }
