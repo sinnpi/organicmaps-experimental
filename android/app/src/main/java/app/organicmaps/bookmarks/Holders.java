@@ -26,6 +26,8 @@ import app.organicmaps.sdk.bookmarks.data.BookmarkInfo;
 import app.organicmaps.sdk.bookmarks.data.BookmarkManager;
 import app.organicmaps.sdk.bookmarks.data.IconClickListener;
 import app.organicmaps.sdk.bookmarks.data.Track;
+import app.organicmaps.sdk.routing.RoutingController;
+import app.organicmaps.sdk.util.Config;
 import app.organicmaps.util.UiUtils;
 import app.organicmaps.util.Utils;
 import app.organicmaps.utils.Graphics;
@@ -76,7 +78,13 @@ public class Holders
       if (mCardBackgroundRes == background)
         return;
       mCardBackgroundRes = background;
-      itemView.setBackgroundResource(background);
+      getCardView().setBackgroundResource(background);
+    }
+
+    @NonNull
+    View getCardView()
+    {
+      return itemView;
     }
 
     @Override
@@ -306,8 +314,13 @@ public class Holders
 
     BaseBookmarkHolder(@NonNull View itemView)
     {
+      this(itemView, itemView);
+    }
+
+    BaseBookmarkHolder(@NonNull View itemView, @NonNull View row)
+    {
       super(itemView);
-      mView = itemView;
+      mView = row;
     }
 
     abstract void bind(@NonNull SectionPosition position,
@@ -440,6 +453,11 @@ public class Holders
     private final ImageView mMoreButton;
     @NonNull
     private final ImageView mEyeIcon;
+    private final View mTrackCard;
+    private final View mFollowActions;
+    private final View mFollowToEnd;
+    private final View mFollowToStart;
+    private boolean mCanFollow;
     @NonNull
     private final CheckBox mSelectionMarker;
     @Nullable
@@ -447,14 +465,38 @@ public class Holders
 
     TrackViewHolder(@NonNull View itemView)
     {
-      super(itemView);
+      super(itemView, itemView.findViewById(R.id.track_card));
       mIcon = itemView.findViewById(R.id.iv__bookmark_color);
       mName = itemView.findViewById(R.id.tv__bookmark_name);
       mDistance = itemView.findViewById(R.id.tv__bookmark_distance);
       mMoreButton = itemView.findViewById(R.id.more);
       mEyeIcon = itemView.findViewById(R.id.eye);
+      mTrackCard = itemView.findViewById(R.id.track_card);
+      mFollowActions = itemView.findViewById(R.id.follow_track_actions);
+      mFollowToEnd = itemView.findViewById(R.id.follow_track_to_end);
+      mFollowToStart = itemView.findViewById(R.id.follow_track_to_start);
       mSelectionMarker = itemView.findViewById(R.id.selection_checkbox);
       mIconBackground = mIcon.getBackground();
+    }
+
+    @Override
+    @NonNull
+    View getCardView()
+    {
+      return mTrackCard;
+    }
+
+    @Override
+    void bindCardPosition(boolean first, boolean last)
+    {
+      final boolean separateCard = mFollowActions.getVisibility() == View.VISIBLE;
+      super.bindCardPosition(first || separateCard, last || separateCard);
+    }
+
+    @Override
+    public boolean skipDivider()
+    {
+      return super.skipDivider() || mFollowActions.getVisibility() == View.VISIBLE;
     }
 
     @Override
@@ -466,6 +508,7 @@ public class Holders
       mSelectionMarker.setChecked(selected);
       // In selection mode every tap on the row must toggle it, so the inner targets step aside.
       UiUtils.hideIf(selectionMode, mEyeIcon, mMoreButton);
+      UiUtils.showIf(!selectionMode && mCanFollow, mFollowActions);
       bindSelectableChild(mIcon, mIconBackground, selectionMode);
     }
 
@@ -474,6 +517,9 @@ public class Holders
     {
       final long trackId = sectionsDataSource.getTrackId(position);
       Track track = BookmarkManager.INSTANCE.getTrack(trackId);
+      final RoutingController routing = RoutingController.get();
+      mCanFollow = !track.isRelationTrack() && Config.isTrackFollowEnabled()
+                && (!routing.isPlanning() || routing.isTrackFollowMode());
       mName.setText(track.getName());
       mDistance.setText(new StringBuilder()
                             .append(mDistance.getContext().getString(R.string.length))
@@ -504,6 +550,16 @@ public class Holders
     public void setEyeClickListener(RecyclerClickListener listener)
     {
       mEyeIcon.setOnClickListener(v -> listener.onItemClick(v, getBindingAdapterPosition()));
+    }
+
+    public void setFollowToEndClickListener(RecyclerClickListener listener)
+    {
+      mFollowToEnd.setOnClickListener(v -> listener.onItemClick(v, getBindingAdapterPosition()));
+    }
+
+    public void setFollowToStartClickListener(RecyclerClickListener listener)
+    {
+      mFollowToStart.setOnClickListener(v -> listener.onItemClick(v, getBindingAdapterPosition()));
     }
 
     public void setTrackIconClickListener(IconClickListener listener)

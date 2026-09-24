@@ -382,6 +382,8 @@ public class BookmarksListFragment extends BaseMwmRecyclerFragment<BookmarkListA
     adapter.setOnLongClickListener((v, position) -> onItemLongClick(position));
     adapter.setMoreListener((v, position) -> onItemMore(position));
     adapter.setEyeListener((v, position) -> onToggleTrackVisibilityAt(position));
+    adapter.setFollowToEndListener((v, position) -> followTrackAt(position, false));
+    adapter.setFollowToStartListener((v, position) -> followTrackAt(position, true));
     adapter.setIconClickListener(this::showColorDialog);
     adapter.setSelectionStateProvider(this);
   }
@@ -395,6 +397,20 @@ public class BookmarksListFragment extends BaseMwmRecyclerFragment<BookmarkListA
       i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
       startActivity(i);
     });
+  }
+
+  private void followTrackAt(int position, boolean reverse)
+  {
+    final BookmarkListAdapter adapter = getAdapter();
+    if (position == RecyclerView.NO_POSITION || position >= adapter.getItemCount()
+        || adapter.getItemViewType(position) != BookmarkListAdapter.TYPE_TRACK)
+      return;
+    final Track track = (Track) adapter.getItem(position);
+    final Intent intent = makeMwmActivityIntent();
+    intent.putExtra(MwmActivity.EXTRA_TRACK_ID, track.getTrackId());
+    intent.putExtra(MwmActivity.EXTRA_FOLLOW_TRACK_REVERSE, reverse);
+    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+    startActivity(intent);
   }
 
   private void configureSelectionActions(@NonNull View view)

@@ -141,6 +141,7 @@ public class MwmActivity extends BaseMwmFragmentActivity
   public static final String EXTRA_CATEGORY_ID = "category_id";
   public static final String EXTRA_BOOKMARK_ID = "bookmark_id";
   public static final String EXTRA_TRACK_ID = "track_id";
+  public static final String EXTRA_FOLLOW_TRACK_REVERSE = "follow_track_reverse";
   public static final String EXTRA_UPDATE_THEME = "update_theme";
   // Stored both in the saved instance state and, when the core restarts, in the intent itself.
   static final String EXTRA_CONSUMED = "mwm.extra.intent.processed";
@@ -277,6 +278,10 @@ public class MwmActivity extends BaseMwmFragmentActivity
     {
       Objects.requireNonNull(BookmarkManager.INSTANCE.getTrack(trackId));
       Framework.nativeShowTrackRect(trackId);
+      if (intent.hasExtra(EXTRA_FOLLOW_TRACK_REVERSE)
+          && !RoutingController.get().prepareTrackFollow(
+              trackId, intent.getBooleanExtra(EXTRA_FOLLOW_TRACK_REVERSE, false)))
+        Toast.makeText(this, R.string.track_follow_unavailable, Toast.LENGTH_LONG).show();
       return;
     }
     else if (categoryId != -1)

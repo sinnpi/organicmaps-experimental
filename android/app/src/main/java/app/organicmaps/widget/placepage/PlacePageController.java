@@ -242,10 +242,10 @@ public class PlacePageController
       items.add(new MenuBottomSheetItem(R.string.p2p_to_here, R.drawable.ic_route_to, this::navigateToSelectedPoint));
       items.add(new MenuBottomSheetItem(R.string.follow_track_to_here, R.drawable.ic_route_to,
                                         this::followSelectedTrackToSelectedPoint));
-      items.add(new MenuBottomSheetItem(R.string.follow_track, R.drawable.ic_route_to,
-                                        () -> followSelectedTrack(false /* reverse */)));
       items.add(new MenuBottomSheetItem(R.string.follow_track_reverse, R.drawable.ic_route_to,
                                         () -> followSelectedTrack(true /* reverse */)));
+      items.add(new MenuBottomSheetItem(R.string.follow_track, R.drawable.ic_route_to,
+                                        () -> followSelectedTrack(false /* reverse */)));
       return items;
     }
 

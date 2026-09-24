@@ -3,43 +3,117 @@
   xmlns:android="http://schemas.android.com/apk/res/android"
   xmlns:app="http://schemas.android.com/apk/res-auto"
   xmlns:tools="http://schemas.android.com/tools"
-  style="@style/BookmarkListRow"
-  android:background="@drawable/bg_card_item_middle">
+  android:layout_width="match_parent"
+  android:layout_height="wrap_content"
+  android:orientation="vertical">
 
-  <CheckBox
-    android:id="@+id/selection_checkbox"
-    style="@style/BookmarkListRow.Checkbox"
-    tools:visibility="visible" />
+  <LinearLayout
+    android:id="@+id/track_card"
+    style="@style/BookmarkListRow"
+    android:background="@drawable/bg_card_item_middle">
 
-  <ImageView
-    android:id="@+id/iv__bookmark_color"
-    style="@style/BookmarkListRow.Icon"
-    android:contentDescription="@string/change_color"
-    tools:background="@color/base_red" />
+    <CheckBox
+      android:id="@+id/selection_checkbox"
+      style="@style/BookmarkListRow.Checkbox"
+      tools:visibility="visible" />
 
-  <LinearLayout style="@style/BookmarkListRow.Text">
-    <TextView
-      android:id="@+id/tv__bookmark_name"
-      style="@style/BookmarkListRow.Title"
-      tools:text="@string/tracks_title" />
+    <ImageView
+      android:id="@+id/iv__bookmark_color"
+      style="@style/BookmarkListRow.Icon"
+      android:contentDescription="@string/change_color"
+      tools:background="@color/base_red" />
 
-    <TextView
-      android:id="@+id/tv__bookmark_distance"
-      style="@style/BookmarkListRow.Subtitle"
-      tools:text="@string/by_distance" />
+    <LinearLayout style="@style/BookmarkListRow.Text">
+      <TextView
+        android:id="@+id/tv__bookmark_name"
+        style="@style/BookmarkListRow.Title"
+        tools:text="@string/tracks_title" />
+
+      <TextView
+        android:id="@+id/tv__bookmark_distance"
+        style="@style/BookmarkListRow.Subtitle"
+        tools:text="@string/by_distance" />
+    </LinearLayout>
+
+    <ImageView
+      android:id="@+id/eye"
+      style="@style/BookmarkListRow.TrailingIcon"
+      android:contentDescription="@string/hide_track"
+      app:srcCompat="@drawable/ic_show"
+      app:tint="?secondary" />
+
+    <ImageView
+      android:id="@+id/more"
+      style="@style/BookmarkListRow.TrailingIcon"
+      android:contentDescription="@string/placepage_more_button"
+      app:srcCompat="@drawable/ic_more"
+      app:tint="?secondary" />
   </LinearLayout>
 
-  <ImageView
-    android:id="@+id/eye"
-    style="@style/BookmarkListRow.TrailingIcon"
-    android:contentDescription="@string/hide_track"
-    app:srcCompat="@drawable/ic_show"
-    app:tint="?secondary" />
+  <LinearLayout
+    android:id="@+id/follow_track_actions"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="@dimen/margin_half"
+    android:layout_marginBottom="@dimen/margin_half"
+    android:orientation="vertical"
+    android:visibility="gone"
+    tools:visibility="visible">
 
-  <ImageView
-    android:id="@+id/more"
-    style="@style/BookmarkListRow.TrailingIcon"
-    android:contentDescription="@string/placepage_more_button"
-    app:srcCompat="@drawable/ic_more"
-    app:tint="?secondary" />
+    <LinearLayout
+      android:id="@+id/follow_track_to_start"
+      style="@style/BookmarkTrackFollowAction"
+      android:background="@drawable/bg_card_item_top">
+
+      <ImageView
+        android:layout_width="@dimen/track_circle_size"
+        android:layout_height="@dimen/track_circle_size"
+        android:layout_marginEnd="@dimen/margin_base"
+        android:importantForAccessibility="no"
+        app:srcCompat="@drawable/ic_route_to"
+        app:tint="?android:textColorPrimary" />
+
+      <TextView
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="@string/follow_track_reverse"
+        android:textAppearance="@style/MwmTextAppearance.Body1"
+        android:textColor="?android:textColorPrimary" />
+    </LinearLayout>
+
+    <FrameLayout
+      android:layout_width="match_parent"
+      android:layout_height="@dimen/divider_height"
+      android:background="?panel">
+
+      <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginHorizontal="@dimen/margin_base"
+        android:background="@drawable/divider_base" />
+    </FrameLayout>
+
+    <LinearLayout
+      android:id="@+id/follow_track_to_end"
+      style="@style/BookmarkTrackFollowAction"
+      android:background="@drawable/bg_card_item_bottom">
+
+      <ImageView
+        android:layout_width="@dimen/track_circle_size"
+        android:layout_height="@dimen/track_circle_size"
+        android:layout_marginEnd="@dimen/margin_base"
+        android:importantForAccessibility="no"
+        app:srcCompat="@drawable/ic_route_to"
+        app:tint="?android:textColorPrimary" />
+
+      <TextView
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="@string/follow_track"
+        android:textAppearance="@style/MwmTextAppearance.Body1"
+        android:textColor="?android:textColorPrimary" />
+    </LinearLayout>
+  </LinearLayout>
 </LinearLayout>
