@@ -124,6 +124,7 @@ MyPositionController::MyPositionController(Params && params, ref_ptr<DrapeNotifi
   , m_modeChangeCallback(std::move(params.m_myPositionModeCallback))
   , m_hints(params.m_hints)
   , m_isInRouting(params.m_isRoutingActive)
+  , m_routingZoomLevel(kDoNotChangeZoom)
   , m_needBlockAnimation(false)
   , m_wasRotationInScaling(false)
   , m_errorRadius(0.0)
@@ -381,6 +382,9 @@ void MyPositionController::NextMode(ScreenBase const & screen)
   {
     if (IsRotationAvailable() || m_isInRouting)
     {
+      // Undo the zoom-out below, which leaves the map too far out to be tilted.
+      if (m_isInRouting && m_enablePerspectiveInRouting)
+        preferredZoomLevel = m_routingZoomLevel;
       ChangeMode(location::FollowAndRotate);
       UpdateViewport(preferredZoomLevel);
     }
@@ -839,6 +843,8 @@ void MyPositionController::EnableAutoZoomInRouting(bool enableAutoZoom)
 
 void MyPositionController::ActivateRouting(int zoomLevel, bool enableAutoZoom, bool isArrowGlued)
 {
+  // Also when the controller was recreated mid-route and so starts in routing.
+  m_routingZoomLevel = zoomLevel;
   if (!m_isInRouting)
   {
     m_isInRouting = true;

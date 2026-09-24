@@ -167,6 +167,8 @@ private:
 
   bool m_isInRouting = false;
   bool m_isArrowGluedInRouting = false;
+  // The zoom navigation started with.
+  int m_routingZoomLevel;
 
   bool m_needBlockAnimation;
   bool m_wasRotationInScaling;
