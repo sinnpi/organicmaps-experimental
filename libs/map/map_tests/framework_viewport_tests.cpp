@@ -18,6 +18,8 @@ class TestFramework final : public Framework
 public:
   TestFramework() : Framework({}, false /* loadMaps */) {}
 
+  using Framework::FindTracksInTapPosition;
+
   void SetViewport(ScreenBase const & screen, m2::RectD const & visibleViewport)
   {
     m_currentModelView = screen;
@@ -48,7 +50,7 @@ UNIT_TEST(Framework_GetViewportCenter)
     TEST_ALMOST_EQUAL_ABS(actual.y, target.y, kEps, (perspective));
   }
 }
-UNIT_TEST(Framework_LowPowerDoesNotSelectHiddenTracks)
+UNIT_TEST(Framework_LowPowerSelectsVisibleTracks)
 {
   df::VisualParams::Init(1.0, 256);
   TestFramework framework;
@@ -70,12 +72,21 @@ UNIT_TEST(Framework_LowPowerDoesNotSelectHiddenTracks)
   place_page::BuildInfo tap;
   tap.m_mercator = point;
   framework.SetLowPowerNavigationMode(true);
-  framework.BuildAndSetPlacePageInfo(tap);
-  TEST(!framework.GetCurrentPlacePageInfo().IsTrack(), ());
-  TEST_EQUAL(framework.GetCurrentPlacePageInfo().GetMercator(), point, ());
+  auto candidates = framework.FindTracksInTapPosition(tap);
+  TEST_EQUAL(candidates.size(), 1, ());
+  TEST_EQUAL(candidates.front().m_trackId, trackId, ());
+
+  bookmarks.GetEditSession().SetIsVisible(categoryId, false);
+  TEST(framework.FindTracksInTapPosition(tap).empty(), ());
+  bookmarks.GetEditSession().SetIsVisible(categoryId, true);
+
+  bookmarks.GetEditSession().SetTrackVisibility(trackId, false);
+  TEST(framework.FindTracksInTapPosition(tap).empty(), ());
+  bookmarks.GetEditSession().SetTrackVisibility(trackId, true);
 
   framework.SetLowPowerNavigationMode(false);
-  framework.BuildAndSetPlacePageInfo(tap);
-  TEST(framework.GetCurrentPlacePageInfo().IsTrack(), ());
+  candidates = framework.FindTracksInTapPosition(tap);
+  TEST_EQUAL(candidates.size(), 1, ());
+  TEST_EQUAL(candidates.front().m_trackId, trackId, ());
 }
 }  // namespace framework_viewport_tests

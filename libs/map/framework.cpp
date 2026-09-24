@@ -2715,7 +2715,7 @@ place_page::Info Framework::BuildPlacePageInfo(place_page::BuildInfo const & bui
     else
     {
       trackSelectionCandidates = FindTracksInTapPosition(buildInfo);
-      if (!trackSelectionCandidates.empty() && isFeatureMatchingEnabled)
+      if (!trackSelectionCandidates.empty() && isFeatureMatchingEnabled && !m_lowPowerNavigationMode)
       {
         auto const searchRect =
             df::TapInfo::GetDefaultTapRect(buildInfo.m_mercator, m_currentModelView).GetGlobalRect();
@@ -2832,11 +2832,6 @@ std::vector<Track::TrackSelectionInfo> Framework::FindTracksInTapPosition(place_
     CHECK(selection.IsValid(), ());
     return {selection};
   }
-  // Low-power rendering omits the user-line layer: invisible tracks must not capture map taps.
-  // Explicit selections from the saved-track list are handled above.
-  if (m_lowPowerNavigationMode)
-    return {};
-
   auto const touchRect = df::TapInfo::GetDefaultTapRect(buildInfo.m_mercator, m_currentModelView).GetGlobalRect();
   return bm.FindTracksInRect(touchRect);
 }

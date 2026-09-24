@@ -380,7 +380,6 @@ private:
   place_page::Info BuildPlacePageInfo(place_page::BuildInfo const & buildInfo);
   std::optional<kml::TrackData> TryBuildRelationTrack(Track::TrackSelectionInfo const & candidateInfo);
   bool BuildTrackPlacePage(Track::TrackSelectionInfo const & trackSelectionInfo, place_page::Info & info);
-  std::vector<Track::TrackSelectionInfo> FindTracksInTapPosition(place_page::BuildInfo const & buildInfo) const;
   /// Builds temporary track candidates for route relations associated with tapped line features.
   std::vector<Track::TrackSelectionInfo> FindRelationTracksInTapPosition(
       std::vector<std::pair<double, FeatureID>> const & lineCandidates, m2::PointD const & mercator);
@@ -819,6 +818,8 @@ public:
   RoutingManager const & GetRoutingManager() const { return m_routingManager; }
 
 protected:
+  std::vector<Track::TrackSelectionInfo> FindTracksInTapPosition(place_page::BuildInfo const & buildInfo) const;
+
   /// RoutingManager::Delegate
   void OnRouteFollow(routing::RouterType type) override;
   void InitRouting();
