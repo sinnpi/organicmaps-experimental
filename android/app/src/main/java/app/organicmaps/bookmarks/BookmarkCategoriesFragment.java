@@ -54,6 +54,7 @@ public class BookmarkCategoriesFragment extends BaseMwmRecyclerFragment<Bookmark
   private static final String TAG = BookmarkCategoriesFragment.class.getSimpleName();
 
   public static final String BOOKMARKS_CATEGORIES_MENU_ID = "BOOKMARKS_CATEGORIES_BOTTOM_SHEET";
+  private static final String CATEGORY_EXPORT_MENU_ID = "CATEGORY_EXPORT_BOTTOM_SHEET";
 
   private static final String EXTRA_SELECTED_CATEGORY = "selected_category";
 
@@ -178,8 +179,12 @@ public class BookmarkCategoriesFragment extends BaseMwmRecyclerFragment<Bookmark
   protected final void showBottomMenu(@NonNull BookmarkCategory item)
   {
     mSelectedCategory = item;
-    MenuBottomSheetFragment.newInstance(BOOKMARKS_CATEGORIES_MENU_ID, item.getName())
-        .show(getChildFragmentManager(), BOOKMARKS_CATEGORIES_MENU_ID);
+    showCategoryMenu(BOOKMARKS_CATEGORIES_MENU_ID, item);
+  }
+
+  private void showCategoryMenu(@NonNull String id, @NonNull BookmarkCategory category)
+  {
+    MenuBottomSheetFragment.newInstance(id, category.getName()).show(getChildFragmentManager(), id);
   }
 
   @Override
@@ -189,12 +194,15 @@ public class BookmarkCategoriesFragment extends BaseMwmRecyclerFragment<Bookmark
     ArrayList<MenuBottomSheetItem> items = new ArrayList<>();
     if (mSelectedCategory != null)
     {
+      if (id.equals(CATEGORY_EXPORT_MENU_ID))
+        return ExportMenuItems.create(fileType -> onShareActionSelected(mSelectedCategory, fileType));
       items.add(new MenuBottomSheetItem(R.string.edit, R.drawable.ic_settings,
                                         () -> onSettingsActionSelected(mSelectedCategory)));
       items.add(new MenuBottomSheetItem(mSelectedCategory.isVisible() ? R.string.hide : R.string.show,
                                         mSelectedCategory.isVisible() ? R.drawable.ic_hide : R.drawable.ic_show,
                                         () -> onShowActionSelected(mSelectedCategory)));
-      items.addAll(ExportMenuItems.create(fileType -> onShareActionSelected(mSelectedCategory, fileType)));
+      items.add(MenuBottomSheetItem.submenu(R.string.export_menu, R.drawable.ic_export,
+                                            () -> showCategoryMenu(CATEGORY_EXPORT_MENU_ID, mSelectedCategory)));
       // Disallow deleting the last category
       if (getAdapter().getBookmarkCategories().size() > 1)
         items.add(new MenuBottomSheetItem(R.string.delete, R.drawable.ic_delete,

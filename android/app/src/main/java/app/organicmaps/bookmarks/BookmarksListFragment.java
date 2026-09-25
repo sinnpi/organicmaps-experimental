@@ -76,6 +76,7 @@ public class BookmarksListFragment extends BaseMwmRecyclerFragment<BookmarkListA
   private static final String FOLLOW_TRACK_MENU_ID = "FOLLOW_TRACK_MENU_BOTTOM_SHEET";
   private static final String TRACK_EXPORT_MENU_ID = "TRACK_EXPORT_MENU_BOTTOM_SHEET";
   private static final String OPTIONS_MENU_ID = "OPTIONS_MENU_BOTTOM_SHEET";
+  private static final String OPTIONS_EXPORT_MENU_ID = "OPTIONS_EXPORT_MENU_BOTTOM_SHEET";
   private static final String DELETE_SELECTED_REQUEST_KEY = "DeleteSelectedBookmarksConfirmation";
 
   private ActivityResultLauncher<SharingUtils.SharingIntent> shareLauncher;
@@ -182,8 +183,7 @@ public class BookmarksListFragment extends BaseMwmRecyclerFragment<BookmarkListA
 
       if (itemId == R.id.bookmarks_more)
       {
-        MenuBottomSheetFragment.newInstance(OPTIONS_MENU_ID, mCategoryDataSource.getData().getName())
-            .show(getChildFragmentManager(), OPTIONS_MENU_ID);
+        showOptionsMenu(OPTIONS_MENU_ID);
         return true;
       }
       return false;
@@ -1379,12 +1379,19 @@ public class BookmarksListFragment extends BaseMwmRecyclerFragment<BookmarkListA
         items.add(new MenuBottomSheetItem(R.string.select, R.drawable.ic_check, this::enterSelectionMode));
       if (types.length > 0)
         items.add(new MenuBottomSheetItem(R.string.sort, R.drawable.ic_sort, this::onSortOptionSelected));
-      items.addAll(ExportMenuItems.create(this::onShareOptionSelected));
+      items.add(MenuBottomSheetItem.submenu(R.string.export_menu, R.drawable.ic_export,
+                                            () -> showOptionsMenu(OPTIONS_EXPORT_MENU_ID)));
     }
     items.add(new MenuBottomSheetItem(R.string.edit, R.drawable.ic_settings, this::onSettingsOptionSelected));
     if (!isLastOwnedCategory())
       items.add(new MenuBottomSheetItem(R.string.delete_list, R.drawable.ic_delete, this::onDeleteOptionSelected));
     return items;
+  }
+
+  private void showOptionsMenu(@NonNull String id)
+  {
+    MenuBottomSheetFragment.newInstance(id, mCategoryDataSource.getData().getName())
+        .show(getChildFragmentManager(), id);
   }
 
   private ArrayList<MenuBottomSheetItem> getBookmarkMenuItems()
@@ -1580,6 +1587,8 @@ public class BookmarksListFragment extends BaseMwmRecyclerFragment<BookmarkListA
       return getBookmarkMenuItems();
     if (id.equals(OPTIONS_MENU_ID))
       return getOptionsMenuItems();
+    if (id.equals(OPTIONS_EXPORT_MENU_ID))
+      return ExportMenuItems.create(this::onShareOptionSelected);
     if (!id.equals(TRACK_MENU_ID) && !id.equals(FOLLOW_TRACK_MENU_ID) && !id.equals(TRACK_EXPORT_MENU_ID))
       return null;
     // The sheets restore themselves with the focused id, which the core may have dropped since - getTrack() only
