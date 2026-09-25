@@ -41,8 +41,10 @@ import app.organicmaps.sdk.bookmarks.data.FileType;
 import app.organicmaps.sdk.bookmarks.data.Icon;
 import app.organicmaps.sdk.bookmarks.data.SortedBlock;
 import app.organicmaps.sdk.bookmarks.data.Track;
+import app.organicmaps.sdk.routing.RoutingController;
 import app.organicmaps.sdk.search.BookmarkSearchListener;
 import app.organicmaps.sdk.search.SearchEngine;
+import app.organicmaps.sdk.util.Config;
 import app.organicmaps.util.SharingUtils;
 import app.organicmaps.util.UiUtils;
 import app.organicmaps.util.Utils;
@@ -71,6 +73,8 @@ public class BookmarksListFragment extends BaseMwmRecyclerFragment<BookmarkListA
   private static final long SELECTION_ACTIONS_ANIMATION_MS = 300;
   private static final String BOOKMARKS_MENU_ID = "BOOKMARKS_MENU_BOTTOM_SHEET";
   private static final String TRACK_MENU_ID = "TRACK_MENU_BOTTOM_SHEET";
+  private static final String FOLLOW_TRACK_MENU_ID = "FOLLOW_TRACK_MENU_BOTTOM_SHEET";
+  private static final String TRACK_EXPORT_MENU_ID = "TRACK_EXPORT_MENU_BOTTOM_SHEET";
   private static final String OPTIONS_MENU_ID = "OPTIONS_MENU_BOTTOM_SHEET";
   private static final String DELETE_SELECTED_REQUEST_KEY = "DeleteSelectedBookmarksConfirmation";
 
@@ -382,8 +386,6 @@ public class BookmarksListFragment extends BaseMwmRecyclerFragment<BookmarkListA
     adapter.setOnLongClickListener((v, position) -> onItemLongClick(position));
     adapter.setMoreListener((v, position) -> onItemMore(position));
     adapter.setEyeListener((v, position) -> onToggleTrackVisibilityAt(position));
-    adapter.setFollowToEndListener((v, position) -> followTrackAt(position, false));
-    adapter.setFollowToStartListener((v, position) -> followTrackAt(position, true));
     adapter.setIconClickListener(this::showColorDialog);
     adapter.setSelectionStateProvider(this);
   }
@@ -399,15 +401,10 @@ public class BookmarksListFragment extends BaseMwmRecyclerFragment<BookmarkListA
     });
   }
 
-  private void followTrackAt(int position, boolean reverse)
+  private void followTrack(long trackId, boolean reverse)
   {
-    final BookmarkListAdapter adapter = getAdapter();
-    if (position == RecyclerView.NO_POSITION || position >= adapter.getItemCount()
-        || adapter.getItemViewType(position) != BookmarkListAdapter.TYPE_TRACK)
-      return;
-    final Track track = (Track) adapter.getItem(position);
     final Intent intent = makeMwmActivityIntent();
-    intent.putExtra(MwmActivity.EXTRA_TRACK_ID, track.getTrackId());
+    intent.putExtra(MwmActivity.EXTRA_TRACK_ID, trackId);
     intent.putExtra(MwmActivity.EXTRA_FOLLOW_TRACK_REVERSE, reverse);
     intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
     startActivity(intent);
@@ -1402,13 +1399,35 @@ public class BookmarksListFragment extends BaseMwmRecyclerFragment<BookmarkListA
   private ArrayList<MenuBottomSheetItem> getTrackMenuItems(final Track track)
   {
     ArrayList<MenuBottomSheetItem> items = new ArrayList<>();
+    final RoutingController routing = RoutingController.get();
+    // Same gating as the Route to menu on the track's place page.
+    if (!track.isRelationTrack() && Config.isTrackFollowEnabled()
+        && (!routing.isPlanning() || routing.isTrackFollowMode()))
+      items.add(MenuBottomSheetItem.submenu(R.string.follow_track_menu, R.drawable.ic_route_to,
+                                            () -> showTrackSubmenu(FOLLOW_TRACK_MENU_ID, track)));
     items.add(new MenuBottomSheetItem(R.string.edit, R.drawable.ic_edit, this::onTrackEditActionSelected));
     final boolean visible = track.isVisible();
     items.add(new MenuBottomSheetItem(visible ? R.string.hide_track : R.string.show_track,
                                       visible ? R.drawable.ic_hide : R.drawable.ic_show,
                                       () -> onToggleTrackVisibility(track.getTrackId())));
-    items.addAll(ExportMenuItems.create(fileType -> onShareTrackSelected(track.getTrackId(), fileType)));
+    items.add(MenuBottomSheetItem.submenu(R.string.export_menu, R.drawable.ic_export,
+                                          () -> showTrackSubmenu(TRACK_EXPORT_MENU_ID, track)));
     items.add(new MenuBottomSheetItem(R.string.delete, R.drawable.ic_delete, this::onDeleteTrackSelected));
+    return items;
+  }
+
+  private void showTrackSubmenu(@NonNull String id, @NonNull Track track)
+  {
+    MenuBottomSheetFragment.newInstance(id, track.getName()).show(getChildFragmentManager(), id);
+  }
+
+  private ArrayList<MenuBottomSheetItem> getFollowTrackMenuItems(long trackId)
+  {
+    ArrayList<MenuBottomSheetItem> items = new ArrayList<>();
+    items.add(new MenuBottomSheetItem(R.string.follow_track_reverse, R.drawable.ic_route_to,
+                                      () -> followTrack(trackId, true /* reverse */)));
+    items.add(new MenuBottomSheetItem(R.string.follow_track, R.drawable.ic_route_to,
+                                      () -> followTrack(trackId, false /* reverse */)));
     return items;
   }
 
@@ -1559,17 +1578,21 @@ public class BookmarksListFragment extends BaseMwmRecyclerFragment<BookmarkListA
   {
     if (id.equals(BOOKMARKS_MENU_ID))
       return getBookmarkMenuItems();
-    if (id.equals(TRACK_MENU_ID))
-    {
-      // The sheet restores itself with the focused id, which the core may have dropped since - getTrack() only
-      // asserts on that, so in Release it would hand back null.
-      if (!mViewModel.hasFocusedItem() || !BookmarkManager.INSTANCE.hasTrack(mViewModel.getFocusedItemId()))
-        return null;
-      final Track track = BookmarkManager.INSTANCE.getTrack(mViewModel.getFocusedItemId());
-      return getTrackMenuItems(track);
-    }
     if (id.equals(OPTIONS_MENU_ID))
       return getOptionsMenuItems();
-    return null;
+    if (!id.equals(TRACK_MENU_ID) && !id.equals(FOLLOW_TRACK_MENU_ID) && !id.equals(TRACK_EXPORT_MENU_ID))
+      return null;
+    // The sheets restore themselves with the focused id, which the core may have dropped since - getTrack() only
+    // asserts on that, so in Release it would hand back null.
+    if (!mViewModel.hasFocusedItem() || !BookmarkManager.INSTANCE.hasTrack(mViewModel.getFocusedItemId()))
+      return null;
+    final Track track = BookmarkManager.INSTANCE.getTrack(mViewModel.getFocusedItemId());
+    return switch (id)
+    {
+      case FOLLOW_TRACK_MENU_ID -> getFollowTrackMenuItems(track.getTrackId());
+      case TRACK_EXPORT_MENU_ID ->
+        ExportMenuItems.create(fileType -> onShareTrackSelected(track.getTrackId(), fileType));
+      default -> getTrackMenuItems(track);
+    };
   }
 }

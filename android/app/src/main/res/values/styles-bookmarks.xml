@@ -39,20 +39,7 @@
         <item name="shapeAppearanceOverlay">@style/ShapeAppearanceOverlay.Button.Round</item>
     </style>
 
-    <style name="BookmarkTrackFollowAction">
-        <item name="android:layout_width">match_parent</item>
-        <item name="android:layout_height">wrap_content</item>
-        <item name="android:minHeight">@dimen/height_block_base</item>
-        <item name="android:clickable">true</item>
-        <item name="android:focusable">true</item>
-        <item name="android:gravity">center_vertical</item>
-        <item name="android:paddingStart">@dimen/margin_base</item>
-        <item name="android:paddingEnd">@dimen/margin_base</item>
-        <item name="android:paddingTop">@dimen/margin_half</item>
-        <item name="android:paddingBottom">@dimen/margin_half</item>
-    </style>
-
-    <!-- Keep bookmark and track rows aligned within the same list card. -->
+    <!-- A bookmark and a track row must stay pixel-identical: they are adjacent cards in the same list. -->
     <style name="BookmarkListRow">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>

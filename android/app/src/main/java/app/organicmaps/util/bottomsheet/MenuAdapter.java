@@ -12,6 +12,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import app.organicmaps.R;
 import app.organicmaps.sdk.location.TrackRecorder;
 import app.organicmaps.sdk.util.Config;
+import app.organicmaps.util.UiUtils;
 import java.util.ArrayList;
 
 public class MenuAdapter extends RecyclerView.Adapter<MenuAdapter.ViewHolder>
@@ -56,6 +57,7 @@ public class MenuAdapter extends RecyclerView.Adapter<MenuAdapter.ViewHolder>
       iv.setImageResource(item.iconRes);
     viewHolder.getContainer().setOnClickListener((v) -> onMenuItemClick(item));
     viewHolder.getTitleTextView().setText(item.titleRes);
+    UiUtils.showIf(item.opensSubmenu, viewHolder.getChevronImageView());
     TextView badge = viewHolder.getBadgeTextView();
     if (item.badgeCount > 0)
     {
@@ -89,6 +91,7 @@ public class MenuAdapter extends RecyclerView.Adapter<MenuAdapter.ViewHolder>
     private final ImageView iconImageView;
     private final TextView titleTextView;
     private final TextView badgeTextView;
+    private final ImageView chevronImageView;
 
     public ViewHolder(View view)
     {
@@ -97,6 +100,7 @@ public class MenuAdapter extends RecyclerView.Adapter<MenuAdapter.ViewHolder>
       iconImageView = view.findViewById(R.id.bottom_sheet_menu_item_icon);
       titleTextView = view.findViewById(R.id.bottom_sheet_menu_item_text);
       badgeTextView = view.findViewById(R.id.bottom_sheet_menu_item_badge);
+      chevronImageView = view.findViewById(R.id.bottom_sheet_menu_item_chevron);
     }
 
     public ImageView getIconImageView()
@@ -112,6 +116,11 @@ public class MenuAdapter extends RecyclerView.Adapter<MenuAdapter.ViewHolder>
     public TextView getBadgeTextView()
     {
       return badgeTextView;
+    }
+
+    public ImageView getChevronImageView()
+    {
+      return chevronImageView;
     }
 
     public LinearLayout getContainer()

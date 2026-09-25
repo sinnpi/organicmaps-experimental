@@ -36,4 +36,13 @@
     android:visibility="gone"
     tools:text="9999"
     tools:visibility="visible" />
+  <ImageView
+    android:id="@+id/bottom_sheet_menu_item_chevron"
+    android:layout_width="@dimen/bookmark_icon_size"
+    android:layout_height="match_parent"
+    android:importantForAccessibility="no"
+    android:visibility="gone"
+    app:srcCompat="@drawable/ic_chevron_right"
+    app:tint="?android:textColorSecondary"
+    tools:visibility="visible" />
 </LinearLayout>

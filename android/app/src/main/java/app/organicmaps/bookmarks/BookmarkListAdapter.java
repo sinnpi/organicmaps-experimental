@@ -51,8 +51,6 @@ public class BookmarkListAdapter extends RecyclerView.Adapter<Holders.BaseBookma
   private SelectionStateProvider mSelectionStateProvider;
   private RecyclerClickListener mMoreClickListener;
   private RecyclerClickListener mEyeClickListener;
-  private RecyclerClickListener mFollowToEndListener;
-  private RecyclerClickListener mFollowToStartListener;
   private IconClickListener mIconClickListener;
 
   /**
@@ -449,16 +447,6 @@ public class BookmarkListAdapter extends RecyclerView.Adapter<Holders.BaseBookma
     mEyeClickListener = listener;
   }
 
-  void setFollowToEndListener(RecyclerClickListener listener)
-  {
-    mFollowToEndListener = listener;
-  }
-
-  void setFollowToStartListener(RecyclerClickListener listener)
-  {
-    mFollowToStartListener = listener;
-  }
-
   public void setIconClickListener(IconClickListener listener)
   {
     mIconClickListener = listener;
@@ -485,8 +473,6 @@ public class BookmarkListAdapter extends RecyclerView.Adapter<Holders.BaseBookma
       trackHolder.setTrackIconClickListener(mIconClickListener);
       trackHolder.setMoreButtonClickListener(mMoreClickListener);
       trackHolder.setEyeClickListener(mEyeClickListener);
-      trackHolder.setFollowToEndClickListener(mFollowToEndListener);
-      trackHolder.setFollowToStartClickListener(mFollowToStartListener);
       holder = trackHolder;
       break;
     case TYPE_BOOKMARK:
@@ -530,6 +516,7 @@ public class BookmarkListAdapter extends RecyclerView.Adapter<Holders.BaseBookma
     final int sectionIndex = sp.getSectionIndex();
     final int itemsType = mSectionsDataSource.getItemsType(sectionIndex);
     final int itemsCount = mSectionsDataSource.getItemsCount(sectionIndex);
+    holder.bindCardPosition(sp.getItemIndex() == 0, sp.getItemIndex() == itemsCount - 1);
 
     // Everything below is derived from sp: re-entering getItemIdAt(int)/getItemViewType(int) here would walk the
     // sections again, which getSectionPosition() has just done.
@@ -537,7 +524,6 @@ public class BookmarkListAdapter extends RecyclerView.Adapter<Holders.BaseBookma
     final long itemId =
         selectionMode && sp.isItemPosition() && isSelectableType(itemsType) ? getItemIdAt(sp, itemsType) : -1;
     holder.bindSelection(selectionMode, itemId != -1 && mSelectionStateProvider.isSelected(itemsType, itemId));
-    holder.bindCardPosition(sp.getItemIndex() == 0, sp.getItemIndex() == itemsCount - 1);
   }
 
   @Override
