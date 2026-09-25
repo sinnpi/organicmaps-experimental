@@ -26355,6 +26355,62 @@ vi = …thêm
 zh-Hans = …更多
 zh-Hant = …更多
 
+[export_menu]
+comment = Menu item that opens the choice of file formats to export a track or a list in.
+tags = android-app
+en = Export
+af = Voer uit
+ar = تصدير
+ast = Esportar
+az = İxrac edin
+be = Экспарт
+bg = Експорт
+ca = Exporta
+cs = Exportovat
+da = Eksporter
+de = Exportieren
+el = Εξαγωγή
+es = Exportar
+et = Ekspordi
+eu = Esportatu
+fa = صادر کردن
+fi = Vie
+fr = Exporter
+gl = Exportar
+he = ייצא
+hi = निर्यात करें
+hr = Izvezi
+hu = Exportálás
+hy = Արտահանել
+id = Ekspor
+is = Flytja út
+it = Esporta
+ja = エクスポート
+ko = 내보내기
+lo = ສົ່ງອອກ
+lt = Eksportuoti
+lv = Eksportēt
+mr = निर्यात करा
+mt = Esporta
+nb = Eksporter
+nl = Exporteren
+pl = Eksportuj
+pt = Exportar
+ro = Export
+ru = Экспорт
+sk = Exportovať
+sl = Izvozi
+sq = Eksporto
+sr = Експортуј
+sv = Exportera
+sw = Hamisha
+th = ส่งออก
+tr = Dışa Aktar
+uk = Експорт
+vi = Xuất
+zh-Hans = 导出
+zh-Hant = 匯出
+
 [export_file]
 comment = Menu title for exporting a file in the default KMZ format
 tags = android-app,apple-maps
@@ -45286,6 +45342,11 @@ en = Follow track to start
 comment = Action that builds a navigable route along an imported track, stopping at the point the user tapped on it.
 tags = android-app,apple-maps
 en = Follow track to this point
+
+[follow_track_menu]
+comment = Track menu item that opens the choice of direction to follow an imported track in.
+tags = android-app
+en = Follow track
 
 [track_follow_unavailable]
 comment = Error shown when an imported track cannot be prepared for navigation.
