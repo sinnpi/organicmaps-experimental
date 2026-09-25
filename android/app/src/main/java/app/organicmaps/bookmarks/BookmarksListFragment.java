@@ -1410,7 +1410,7 @@ public class BookmarksListFragment extends BaseMwmRecyclerFragment<BookmarkListA
     // Same gating as the Route to menu on the track's place page.
     if (!track.isRelationTrack() && Config.isTrackFollowEnabled()
         && (!routing.isPlanning() || routing.isTrackFollowMode()))
-      items.add(MenuBottomSheetItem.submenu(R.string.follow_track_menu, R.drawable.ic_route_to,
+      items.add(MenuBottomSheetItem.submenu(R.string.follow_track_menu, R.drawable.ic_follow_track,
                                             () -> showTrackSubmenu(FOLLOW_TRACK_MENU_ID, track)));
     items.add(new MenuBottomSheetItem(R.string.edit, R.drawable.ic_edit, this::onTrackEditActionSelected));
     final boolean visible = track.isVisible();
@@ -1431,9 +1431,9 @@ public class BookmarksListFragment extends BaseMwmRecyclerFragment<BookmarkListA
   private ArrayList<MenuBottomSheetItem> getFollowTrackMenuItems(long trackId)
   {
     ArrayList<MenuBottomSheetItem> items = new ArrayList<>();
-    items.add(new MenuBottomSheetItem(R.string.follow_track_reverse, R.drawable.ic_route_to,
+    items.add(new MenuBottomSheetItem(R.string.follow_track_reverse, R.drawable.ic_follow_track_start,
                                       () -> followTrack(trackId, true /* reverse */)));
-    items.add(new MenuBottomSheetItem(R.string.follow_track, R.drawable.ic_route_to,
+    items.add(new MenuBottomSheetItem(R.string.follow_track, R.drawable.ic_follow_track_end,
                                       () -> followTrack(trackId, false /* reverse */)));
     return items;
   }

@@ -239,12 +239,13 @@ public class PlacePageController
     if (TRACK_NAVIGATION_MENU_ID.equals(id))
     {
       ArrayList<MenuBottomSheetItem> items = new ArrayList<>();
-      items.add(new MenuBottomSheetItem(R.string.p2p_to_here, R.drawable.ic_route_to, this::navigateToSelectedPoint));
-      items.add(new MenuBottomSheetItem(R.string.follow_track_to_here, R.drawable.ic_route_to,
+      items.add(
+          new MenuBottomSheetItem(R.string.p2p_to_here, R.drawable.ic_route_to_here, this::navigateToSelectedPoint));
+      items.add(new MenuBottomSheetItem(R.string.follow_track_to_here, R.drawable.ic_follow_track_point,
                                         this::followSelectedTrackToSelectedPoint));
-      items.add(new MenuBottomSheetItem(R.string.follow_track_reverse, R.drawable.ic_route_to,
+      items.add(new MenuBottomSheetItem(R.string.follow_track_reverse, R.drawable.ic_follow_track_start,
                                         () -> followSelectedTrack(true /* reverse */)));
-      items.add(new MenuBottomSheetItem(R.string.follow_track, R.drawable.ic_route_to,
+      items.add(new MenuBottomSheetItem(R.string.follow_track, R.drawable.ic_follow_track_end,
                                         () -> followSelectedTrack(false /* reverse */)));
       return items;
     }
