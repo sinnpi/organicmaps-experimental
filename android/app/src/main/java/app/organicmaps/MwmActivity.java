@@ -277,11 +277,14 @@ public class MwmActivity extends BaseMwmFragmentActivity
     else if (trackId != -1)
     {
       Objects.requireNonNull(BookmarkManager.INSTANCE.getTrack(trackId));
-      Framework.nativeShowTrackRect(trackId);
-      if (intent.hasExtra(EXTRA_FOLLOW_TRACK_REVERSE)
-          && !RoutingController.get().prepareTrackFollow(
-              trackId, intent.getBooleanExtra(EXTRA_FOLLOW_TRACK_REVERSE, false)))
+      if (intent.hasExtra(EXTRA_FOLLOW_TRACK_REVERSE))
+      {
+        if (RoutingController.get().prepareTrackFollow(
+                trackId, intent.getBooleanExtra(EXTRA_FOLLOW_TRACK_REVERSE, false)))
+          return;
         Toast.makeText(this, R.string.track_follow_unavailable, Toast.LENGTH_LONG).show();
+      }
+      Framework.nativeShowTrackRect(trackId);
       return;
     }
     else if (categoryId != -1)
@@ -994,8 +997,6 @@ public class MwmActivity extends BaseMwmFragmentActivity
     setIntent(intent);
     mIntentConsumed = false;
     super.onNewIntent(intent);
-    if (mMapController.isRenderingActive())
-      processIntent();
   }
 
   @CallSuper
@@ -1045,6 +1046,8 @@ public class MwmActivity extends BaseMwmFragmentActivity
   {
     super.onResumeFragments();
     RoutingController.get().restore();
+    if (mMapController.isRenderingActive())
+      processIntent();
   }
 
   @Override

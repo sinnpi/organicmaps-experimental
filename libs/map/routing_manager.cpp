@@ -443,10 +443,16 @@ void RoutingManager::OnBuildRouteReady(RoutesResult const & result, RouterResult
   // Validate route (in case of bicycle routing it can be invalid).
   ASSERT(result.IsValid(), ());
   auto const & active = result.GetActive();
-  // Do not show the full route if one or more stops were added, for easier multi-stop trip planning.
-  if (active.IsValid() && active.GetSubrouteCount() < 2 && m_currentRouterType != routing::RouterType::Ruler)
+  // Keep multi-stop trips local; track-follow routes use internal shaping checkpoints instead of user-added stops.
+  if (active.IsValid() && (active.GetSubrouteCount() < 2 || m_trackFollowState) &&
+      m_currentRouterType != routing::RouterType::Ruler)
   {
     m2::RectD routeRect = active.GetLimitRect();
+    if (m_trackFollowState)
+    {
+      if (auto const * track = m_bmManager->GetTrack(m_trackFollowState->m_trackId))
+        routeRect.Add(track->GetLimitRect());
+    }
     routeRect.Scale(kRouteScaleMultiplier);
     m_drapeEngine.SafeCall(&df::DrapeEngine::SetModelViewRect, routeRect, true /* applyRotation */, -1 /* zoom */,
                            true /* isAnim */, true /* useVisibleViewport */);
@@ -461,10 +467,15 @@ void RoutingManager::ShowRouteOverview()
     return;
 
   auto const * route = m_routingSession.GetRoute();
-  if (!route || !route->IsValid() || route->GetSubrouteCount() >= 2)
+  if (!route || !route->IsValid() || (route->GetSubrouteCount() >= 2 && !m_trackFollowState))
     return;
 
   m2::RectD routeRect = route->GetLimitRect();
+  if (m_trackFollowState)
+  {
+    if (auto const * track = m_bmManager->GetTrack(m_trackFollowState->m_trackId))
+      routeRect.Add(track->GetLimitRect());
+  }
   routeRect.Scale(kRouteScaleMultiplier);
   m_drapeEngine.SafeCall(&df::DrapeEngine::SetModelViewRect, routeRect, true /* applyRotation */, -1 /* zoom */,
                          true /* isAnim */, true /* useVisibleViewport */);
