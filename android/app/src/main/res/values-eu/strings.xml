@@ -637,6 +637,8 @@
     <!-- Button to change the color of all tracks in the current list -->
     <string name="change_all_tracks_color">Aldatu ibilbide guztien kolorea</string>
     <string name="category_desc_more">…gehiago</string>
+    <!-- Menu item that opens the choice of file formats to export a track or a list in. -->
+    <string name="export_menu">Esportatu</string>
     <!-- Menu title for exporting a file in the default KMZ format -->
     <string name="export_file">Esportatu KMZ</string>
     <!-- Menu title for exporting a file in GPX format -->

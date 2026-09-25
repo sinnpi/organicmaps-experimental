@@ -643,6 +643,8 @@
     <!-- Button to change the color of all tracks in the current list -->
     <string name="change_all_tracks_color">Cambiar el color de todos los trayectos</string>
     <string name="category_desc_more">…más</string>
+    <!-- Menu item that opens the choice of file formats to export a track or a list in. -->
+    <string name="export_menu">Exportar</string>
     <!-- Menu title for exporting a file in the default KMZ format -->
     <string name="export_file">Exportar KMZ</string>
     <!-- Menu title for exporting a file in GPX format -->

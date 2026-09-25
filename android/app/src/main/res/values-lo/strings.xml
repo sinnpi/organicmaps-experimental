@@ -591,6 +591,8 @@
     <!-- Button to change the color of all tracks in the current list -->
     <string name="change_all_tracks_color">ປ່ຽນສີຂອງເສັ້ນທາງທັງໝົດ</string>
     <string name="category_desc_more">…ເພີ່ມເຕີມ</string>
+    <!-- Menu item that opens the choice of file formats to export a track or a list in. -->
+    <string name="export_menu">ສົ່ງອອກ</string>
     <!-- Menu title for exporting a file in the default KMZ format -->
     <string name="export_file">ສົ່ງອອກ KMZ</string>
     <!-- Menu title for exporting a file in GPX format -->

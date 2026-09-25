@@ -634,6 +634,8 @@
     <!-- Button to change the color of all tracks in the current list -->
     <string name="change_all_tracks_color">सभी ट्रैकों का रंग बदलें</string>
     <string name="category_desc_more">…और अधिक</string>
+    <!-- Menu item that opens the choice of file formats to export a track or a list in. -->
+    <string name="export_menu">निर्यात करें</string>
     <!-- Menu title for exporting a file in the default KMZ format -->
     <string name="export_file">निर्यात KMZ</string>
     <!-- Menu title for exporting a file in GPX format -->

@@ -277,6 +277,8 @@
     <string name="layers_title">Estilos y capes del mapa</string>
     <string name="bookmarks_empty_list_title">Esta llista ta balera</string>
     <string name="category_desc_more">… más</string>
+    <!-- Menu item that opens the choice of file formats to export a track or a list in. -->
+    <string name="export_menu">Esportar</string>
     <!-- Menu title for exporting a file in the default KMZ format -->
     <string name="export_file">Esportar KMZ</string>
     <!-- Menu title for exporting a file in GPX format -->

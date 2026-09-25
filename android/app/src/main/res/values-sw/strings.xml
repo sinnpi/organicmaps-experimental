@@ -634,6 +634,8 @@
     <!-- Button to change the color of all tracks in the current list -->
     <string name="change_all_tracks_color">Badilisha rangi ya njia zote</string>
     <string name="category_desc_more">…zaidi</string>
+    <!-- Menu item that opens the choice of file formats to export a track or a list in. -->
+    <string name="export_menu">Hamisha</string>
     <!-- Menu title for exporting a file in the default KMZ format -->
     <string name="export_file">Hamisha KMZ</string>
     <!-- Menu title for exporting a file in GPX format -->
